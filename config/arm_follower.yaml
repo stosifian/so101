@@ -22,4 +22,16 @@ limits_ticks:        # [min, max]      swept range
   wrist_flex:    [996, 2975]     # 946..3025
   wrist_roll:    [341, 3438]     # 291..3488
   gripper:       [2082, 3447]    # 2032..3497
-# speed caps / stall thresholds are filled in at step 4
+# SafeArm settings (step 4, approved 2026-10-26). Conservative; relax with step 6 data.
+# Voltage trip uses expected_voltage_v above.
+safety:
+  speed_cap_ticks_s: 200       # Goal_Speed, ~18 deg/s
+  accel_cap: 10                # Acceleration register, x100 ticks/s^2 = 1000 ticks/s^2
+  max_step_ticks: 100          # goal clamped to present +/- this per command (~9 deg)
+  temp_trip_c: 55              # firmware unloads at 70
+  load_trip_pct: 50            # |Present_Load| above this ...
+  load_trip_s: 0.5             # ... for this long
+  debounce_s: 0.5              # temp/voltage must be out of range this long (ADC glitches, step 3)
+  comm_fail_trip: 5            # consecutive snapshots with a failed servo
+  torque_check_s: 0.5          # how often Torque_Enable is re-read while enabled
+  enable_drift_tol_ticks: 20   # max present-position change during the enable sequence
