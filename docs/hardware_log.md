@@ -46,6 +46,7 @@ Runs: follower `20261026-130808_telemetry_follower`, leader `20261026-131126_tel
 ## Telemetry quirks
 - **V/°C ADC glitches on IDs 4–6 (both arms):** ~0.2–1.6 % of samples read low voltage / high temperature for a single sample. The value really is in the servo register (block and single-register reads agree), so it's servo-side. Debounce any trip on V/°C. Positions have shown no spikes.
 - **Status bit 0 (voltage) follows the ADC glitches:** the leader gripper sets Status=0x01 on exactly the samples where its voltage glitches to 3.6–3.9 V, below the 4.0 V `Min_Voltage_Limit` that every servo has (27 of ~264k samples across all step 3 runs; never on the follower, whose glitches only reach ~10.4 V). The voltage/overheat Status and error-byte bits are therefore debounced in SafeArm; overload/overcurrent/angle bits trip at once.
+- **Occasional failed reads on IDs 4–6 only** (step 5a, run 20261026-142826_shadow_follower): 3 of ~36k reads ("no status packet" ×2, "incorrect status packet" ×1), all absorbed by retries. Each failed attempt costs the SDK's ~34 ms timeout (`LATENCY_TIMER` 16 ms × 2 + 2), so the loop stalls up to ~100 ms. Same three end-of-chain servos as the ADC glitches, which points further toward wrist cabling/ground.
 - **`Moving` stays 0 when back-driven by hand** with torque off; `Present_Speed` does show hand motion. Behaviour under torque: verify at step 5.
 - **Telemetry read:** 15-byte block (addr 56–70) per servo, ~3.0 ms for 6 servos at 1 Mbps; poll limit ~330 Hz. Encoder noise at rest: 0 ticks.
 

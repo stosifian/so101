@@ -12,24 +12,18 @@ Runs write data/raw/<run_id>/ like real runs (kind sim_safearm), plus safety_eve
 import argparse
 import json
 import threading
-import time
-from contextlib import nullcontext
 from statistics import median
 
 import pyarrow.parquet as pq
 from rich.console import Console
-from rich.live import Live
 from rich.table import Table
 
 from so101.config import REPO_ROOT, load_arm_config
 from so101.hw.sim import SimBus
-from so101.motion.loop import Segment, control_loop, sequence
+from so101.motion.loop import control_loop, out_and_back
 from so101.runlog.run import Run
 from so101.safety import SafeArm, SafetyTrip
-from so101.telemetry.hub import Hub
-from so101.telemetry.parquet_log import ParquetLogger
-from so101.telemetry.tui import Tui
-from so101.telemetry.viz import RerunView
+from so101.telemetry.live import LiveSession
 
 FACTORY_DUMP = REPO_ROOT / "data/raw/20261026-112606_regdump_follower/registers.json"
 FAULTS = {
@@ -40,16 +34,6 @@ FAULTS = {
     "comm": lambda b, sid: b.dead.add(sid),
     "torque_off": lambda b, sid: b.inject(sid, "Torque_Enable", 0),
 }
-
-
-def plan(start: dict[str, int], limits: dict[str, tuple[int, int]], amplitude: int, speed: float):
-    """Per joint: move `amplitude` toward the middle of its range, come back. One joint at a time."""
-    segs, pose = [], {j: float(p) for j, p in start.items()}
-    for j, (lo, hi) in limits.items():
-        direction = 1 if (lo + hi) / 2 > pose[j] else -1
-        out = {**pose, j: pose[j] + direction * amplitude}
-        segs += [Segment(pose, out, speed), Segment(out, pose, speed)]
-    return sequence(segs, settle_s=0.3)
 
 
 def main() -> None:
@@ -67,26 +51,22 @@ def main() -> None:
     cfg = load_arm_config("follower")
     bus = SimBus.from_dump(json.loads(FACTORY_DUMP.read_text()), glitch_rate=args.glitch_rate)
     run = Run("sim_safearm", "follower", config_paths=[cfg.path], notes=f"SIMULATION; inject={args.inject}")
-    hub = Hub()
-    logger = ParquetLogger(hub.subscribe("parquet", maxlen=100_000), run).start()
-    tui = Tui(hub.subscribe("tui", maxlen=500), {"follower": cfg.expected_voltage_v},
-              title=f"[SIM] {run.run_id} — Ctrl-C to stop") if args.tui else None  # fmt: skip
-    viz = RerunView(hub.subscribe("viz", maxlen=5000), ["follower"], run.path("telemetry.rrd"), run.run_id,
-                    run.header["started_monotonic_ns"]) if args.viz else None  # fmt: skip
+    live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
+                       title=f"[SIM] {run.run_id} — Ctrl-C to stop")  # fmt: skip
 
     fault = None
     if args.inject:
         reason, joint, at = args.inject.split(":")
         fault = (FAULTS[reason], cfg.joints[joint], float(at))
 
-    stop, result = threading.Event(), {}
+    result = {}
 
     def worker() -> None:  # SafeArm and every bus call live in this one thread
         try:
-            with SafeArm(bus, cfg, hub=hub) as arm:
+            with SafeArm(bus, cfg, hub=live.hub) as arm:
                 result["arm"] = arm
                 report = arm.enable()
-                goal_fn, total = plan(report.present, arm.safety.limits, args.amplitude, args.speed)
+                goal_fn, total = out_and_back(report.present, arm.safety.limits, args.amplitude, args.speed)
                 result["planned_s"] = total
                 done = threading.Event()
 
@@ -95,7 +75,7 @@ def main() -> None:
                         done.set()
                         fault[0](bus, fault[1])
 
-                result["loop"] = control_loop(arm, args.rate, goal_fn, total + 0.5, stop, on_tick)
+                result["loop"] = control_loop(arm, args.rate, goal_fn, total + 0.5, live.stop, on_tick)
         except SafetyTrip as e:
             result["trip"] = e
         except BaseException as e:
@@ -103,23 +83,9 @@ def main() -> None:
 
     th = threading.Thread(target=worker, name="safearm-sim")
     th.start()
-    try:
-        with Live(tui.render(), console=console, refresh_per_second=10) if tui else nullcontext() as live:
-            while th.is_alive():
-                time.sleep(0.1)
-                if viz:
-                    viz.update()
-                if tui:
-                    arm = result.get("arm")
-                    tui.footer = [f"SafeArm state: {arm.state.value if arm else '—'}"]
-                    tui.update()
-                    live.update(tui.render())
-    except KeyboardInterrupt:
-        stop.set()
-    th.join()
-    summary = logger.stop()
-    if viz:
-        viz.close()
+    live.footer = ["SafeArm running (simulation)"]
+    live.run_until_done(th, console)
+    summary = live.close()
     arm = result.get("arm")
     if arm:
         run.write_json("safety_events.json", arm.report())

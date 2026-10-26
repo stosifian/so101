@@ -88,3 +88,15 @@ def sequence(segments: list[Segment], settle_s: float = 0.0) -> tuple[GoalFn, fl
         return None
 
     return goal_fn, t
+
+
+def out_and_back(start: dict[str, float], limits: dict[str, tuple[int, int]], amplitude: float,
+                 speed: float, settle_s: float = 0.3) -> tuple[GoalFn, float]:  # fmt: skip
+    """One joint at a time: move `amplitude` ticks toward the middle of its range, then back.
+    Used by the sim demo and the step 5 checks, so both command the same thing."""
+    segs, pose = [], {j: float(p) for j, p in start.items()}
+    for j, (lo, hi) in limits.items():
+        direction = 1 if (lo + hi) / 2 > pose[j] else -1
+        out = {**pose, j: pose[j] + direction * amplitude}
+        segs += [Segment(pose, out, speed), Segment(out, pose, speed)]
+    return sequence(segs, settle_s)
