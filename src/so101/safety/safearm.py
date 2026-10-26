@@ -90,6 +90,7 @@ class SafeArm:
         self._entered = False
         self._last_torque_check_ns: int | None = None
         self._servo_errors_seen = 0
+        self.frozen = False  # set by freeze(); goals are refused until the next enable()
 
     # --- lifecycle -------------------------------------------------------------------------
 
@@ -149,6 +150,7 @@ class SafeArm:
         if self.state is not State.DISABLED:
             raise SafetyError(f"enable() needs state DISABLED, not {self.state.value}")
         self._last_torque_check_ns = None
+        self.frozen = False
         self.state = State.ENABLING
         report = EnableReport()
         try:
@@ -212,6 +214,20 @@ class SafeArm:
             self._event("reset", None, "trip acknowledged")
             self.state = State.DISABLED
 
+    # --- freeze ----------------------------------------------------------------------------
+
+    def freeze(self) -> StepResult:
+        """Stop all motion but keep torque on: Goal_Position := present position on every joint, then
+        refuse further goals (monitoring and trips continue). The servo decelerates at the
+        Acceleration cap: from 150 ticks/s at 1000 ticks/s^2 that is ~0.15 s and ~11 ticks (~1 deg).
+        For an imminent collision this beats torque-off, which drops the gravity-loaded joints."""
+        snap_goals = {j: s.position for j, s in self.arm.snapshot().joints.items() if s is not None}
+        result = self.step(snap_goals)  # clamps keep these as-is: present is always allowed
+        self.frozen = True
+        missing = sorted(set(self.cfg.joints) - set(snap_goals))
+        self._event("freeze", None, f"goal := present {result.commanded}" + (f"; no reading for {missing}" if missing else ""))
+        return result
+
     # --- speed ---------------------------------------------------------------------------
 
     def set_speed(self, joint: str, ticks_s: int) -> None:
@@ -240,6 +256,8 @@ class SafeArm:
             raise SafetyError("use SafeArm as a context manager (with SafeArm(...) as arm:)")
         if goals and not (self.state is State.HOLDING or self.shadow):
             raise SafetyError(f"goals need state HOLDING (enable() first), not {self.state.value}")
+        if goals and self.frozen:
+            raise SafetyError("frozen: goals are refused until the next enable()")
         snap = self.arm.snapshot()
         trip = self.trips.feed(snap) or self._bus_checks(snap)
         commanded: dict[str, int] = {}

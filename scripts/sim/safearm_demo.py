@@ -53,7 +53,7 @@ def main() -> None:
     bus = SimBus.from_dump(json.loads(FACTORY_DUMP.read_text()), glitch_rate=args.glitch_rate)
     run = Run("sim_safearm", "follower", config_paths=[cfg.path], notes=f"SIMULATION; inject={args.inject}")
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
-                       title=f"[SIM] {run.run_id} — Ctrl-C to stop")  # fmt: skip
+                       title=f"[SIM] {run.run_id} — Ctrl-C = freeze, again = stop")  # fmt: skip
 
     fault = None
     if args.inject:
@@ -76,7 +76,7 @@ def main() -> None:
                         done.set()
                         fault[0](bus, fault[1])
 
-                result["loop"] = control_loop(arm, args.rate, goal_fn, total + 0.5, live.stop, on_tick)
+                result["loop"] = control_loop(arm, args.rate, goal_fn, total + 0.5, live.stop, on_tick, freeze=live.freeze)
         except SafetyTrip as e:
             result["trip"] = e
         except BaseException as e:

@@ -8,7 +8,8 @@ torque on, read back) -> monitor for --seconds with every trip active -> torque 
 for --after-s so the log shows what the joints do once released (elbow settles ~4 deg onto its stop).
 
 Setup: follower clamped, rest pose, hand NEAR the arm (not holding it), 12 V switch within reach.
-Stop early with Ctrl-C (torque off) or by cutting 12 V. Live Rerun plots are on by default (--no-viz to skip).
+Ctrl-C once = freeze (hold, torque on); Ctrl-C again = torque off; cutting 12 V always works. Live Rerun
+plots are on by default (--no-viz to skip). Keep the terminal focused: Ctrl-C in the Rerun window does nothing.
 Writes data/raw/<run_id>/ (kind hold) + safety_events.json + hold_test.json.
 """
 
@@ -57,7 +58,7 @@ def main() -> None:
     kind = "hold_sim" if args.sim else "hold"
     run = Run(kind, "follower", config_paths=[cfg.path], notes=f"step 5b hold test; sim={args.sim}; {args.notes}")
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
-                       title=f"[TORQUE ON: HOLD] {run.run_id} — Ctrl-C = torque off")  # fmt: skip
+                       title=f"[TORQUE ON: HOLD] {run.run_id} — Ctrl-C = freeze, again = torque off")  # fmt: skip
     result: dict = {"marks": {}}
     marks = result["marks"]
 
@@ -68,7 +69,7 @@ def main() -> None:
                 marks["enable_start_ns"] = time.monotonic_ns()
                 result["enable"] = arm.enable()
                 marks["hold_start_ns"] = time.monotonic_ns()
-                result["loop"] = control_loop(arm, args.rate, lambda t: None, args.seconds, live.stop)
+                result["loop"] = control_loop(arm, args.rate, lambda t: None, args.seconds, live.stop, freeze=live.freeze)
                 marks["torque_off_ns"] = time.monotonic_ns()
                 result["disable_failed"] = arm.disable()
                 t_end = time.monotonic() + args.after_s
@@ -84,7 +85,7 @@ def main() -> None:
 
     th = threading.Thread(target=worker, name="safearm-hold")
     th.start()
-    live.footer = ["TORQUE ON (hold, no goals). Ctrl-C = torque off. Hand near the arm."]
+    live.footer = ["TORQUE ON (hold, no goals). Ctrl-C = freeze, again = torque off. Hand near the arm."]
     interrupted = live.run_until_done(th, console)
     summary = live.close()
     bus.close()
@@ -135,7 +136,7 @@ def main() -> None:
     elif "error" in result:
         console.print(f"[red]error (torque turned off on exit): {result['error']!r}")
     else:
-        console.print("[green]enable → hold → torque off completed, no trips" + (" (stopped early)" if interrupted else ""))
+        console.print("[yellow]FROZEN by Ctrl-C, held, then torque off; no trips" if loop and loop.frozen else "[green]enable → hold → torque off completed, no trips" + (" (stopped early)" if interrupted else ""))
     if loop:
         console.print(f"hold loop: {loop.cycles} cycles in {loop.duration_s:.1f} s, overruns {loop.overruns}, "
                       f"skipped {loop.skipped_slots}")  # fmt: skip

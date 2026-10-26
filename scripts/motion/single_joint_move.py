@@ -15,7 +15,7 @@ limits (else refuse before enabling) -> SafeArm.enable() -> per cycle: ramp out 
 --hold-s, ramp back, hold -> torque off -> log --after-s more. Only --joint gets goals.
 
 First-move limits enforced here, tighter than config: |amplitude| <= 300 ticks, speed <= 150 ticks/s.
-Setup: follower clamped, rest pose, hand near the arm, 12 V switch within reach. Ctrl-C = torque off.
+Setup: follower clamped, rest pose, hand near the arm, 12 V switch within reach. Ctrl-C = freeze, again = torque off.
 Writes data/raw/<run_id>/ (kind move) + safety_events.json + single_move.json.
 """
 
@@ -139,7 +139,7 @@ def main() -> None:
                     f"sim={args.sim}; "
                     f"{args.notes}")  # fmt: skip
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
-                       title=f"[TORQUE ON: MOVING {args.joint}] {run.run_id} — Ctrl-C = torque off")  # fmt: skip
+                       title=f"[TORQUE ON: MOVING {args.joint}] {run.run_id} — Ctrl-C = freeze, again = torque off")  # fmt: skip
     result: dict = {"marks": {}}
     marks = result["marks"]
 
@@ -171,7 +171,7 @@ def main() -> None:
                 if args.mode == "servo":
                     arm.set_speed(args.joint, int(args.speed))
                 marks["move_start_ns"] = time.monotonic_ns()
-                result["loop"] = control_loop(arm, args.rate, goal_fn, total, live.stop)
+                result["loop"] = control_loop(arm, args.rate, goal_fn, total, live.stop, freeze=live.freeze)
                 marks["torque_off_ns"] = time.monotonic_ns()
                 result["disable_failed"] = arm.disable()
                 t_end = time.monotonic() + args.after_s
@@ -187,7 +187,7 @@ def main() -> None:
 
     th = threading.Thread(target=worker, name="safearm-move")
     th.start()
-    live.footer = [f"TORQUE ON: moving {args.joint} {args.amplitude:+d} ticks @ {args.speed:g} ticks/s. Ctrl-C = torque off."]
+    live.footer = [f"TORQUE ON: moving {args.joint} {args.amplitude:+d} ticks @ {args.speed:g} ticks/s. Ctrl-C = freeze, again = torque off."]
     interrupted = live.run_until_done(th, console)
     summary = live.close()
     bus.close()
@@ -214,7 +214,7 @@ def main() -> None:
     elif "error" in result:
         console.print(f"[red]stopped (torque off): {result['error']}")
     else:
-        console.print("[green]move completed, torque off, no trips" + (" (stopped early)" if interrupted else ""))
+        console.print("[yellow]FROZEN by Ctrl-C, held, then torque off; no trips" if loop and loop.frozen else "[green]move completed, torque off, no trips" + (" (stopped early)" if interrupted else ""))
     if loop:
         console.print(f"loop: {loop.cycles} cycles in {loop.duration_s:.1f} s, overruns {loop.overruns}, "
                       f"skipped {loop.skipped_slots}")  # fmt: skip

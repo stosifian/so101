@@ -67,7 +67,7 @@ def main() -> None:
     kind = "shadow_sim" if args.sim else "shadow"
     run = Run(kind, "follower", config_paths=[cfg.path], notes=f"step 5a shadow check; sim={args.sim}; {args.notes}")
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
-                       title=f"[SHADOW: torque off, no writes] {run.run_id} — Ctrl-C to stop")  # fmt: skip
+                       title=f"[SHADOW: torque off, no writes] {run.run_id} — Ctrl-C = freeze, again = stop")  # fmt: skip
     result: dict = {}
 
     def worker() -> None:
@@ -76,7 +76,7 @@ def main() -> None:
                 result["arm"] = arm
                 start = {j: s.position for j, s in arm.step().snapshot.joints.items() if s is not None}
                 plan, period = out_and_back(start, arm.safety.limits, amplitude=200, speed=150)
-                result["loop"] = control_loop(arm, args.rate, lambda t: plan(t % period), args.seconds, live.stop)
+                result["loop"] = control_loop(arm, args.rate, lambda t: plan(t % period), args.seconds, live.stop, freeze=live.freeze)
         except SafetyTrip as e:
             result["trip"] = e
         except BaseException as e:

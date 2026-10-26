@@ -21,23 +21,36 @@ class LoopStats:
     overruns: int = 0
     skipped_slots: int = 0
     duration_s: float = 0.0
+    frozen: bool = False
 
 
 def control_loop(arm: SafeArm, rate_hz: float, goal_fn: GoalFn, duration_s: float,
-                 stop: threading.Event | None = None, on_tick: Callable[[float], None] | None = None) -> LoopStats:  # fmt: skip
+                 stop: threading.Event | None = None, on_tick: Callable[[float], None] | None = None,
+                 freeze: threading.Event | None = None) -> LoopStats:  # fmt: skip
     """Call arm.step(goal_fn(t)) at rate_hz until duration_s, `stop` is set, or a trip raises.
-    `on_tick(t)` runs before each step (fault injection in demos/tests)."""
+    `on_tick(t)` runs before each step (fault injection in demos/tests).
+
+    If `freeze` is set: arm.freeze() once (goal := present, torque stays on), then keep monitoring
+    with no goals and IGNORE duration_s: the arm holds until `stop` is set (second Ctrl-C) or a trip."""
     period = int(1e9 / rate_hz)
     stats, stop = LoopStats(), stop or threading.Event()
+    stats_frozen = False
     t0 = next_t = time.monotonic_ns()
     try:
         while not stop.is_set():
             t = (time.monotonic_ns() - t0) / 1e9
-            if t >= duration_s:
-                break
-            if on_tick:
-                on_tick(t)
-            arm.step(goal_fn(t))
+            if freeze is not None and freeze.is_set():
+                if not stats_frozen:
+                    arm.freeze()
+                    stats_frozen = stats.frozen = True
+                else:
+                    arm.step()
+            else:
+                if t >= duration_s:
+                    break
+                if on_tick:
+                    on_tick(t)
+                arm.step(goal_fn(t))
             stats.cycles += 1
             next_t += period
             now = time.monotonic_ns()
