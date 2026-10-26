@@ -1,9 +1,10 @@
 """Propose software joint limits from a torque-off, by-hand sweep.
 
-Pattern: LeRobot's `record_ranges_of_motion` (lerobot/motors/motors_bus.py; from memory, pin the
-commit when we next compare): track min/max Present_Position while the user moves each joint
-through its range. What we change and why:
-- No EEPROM writes. LeRobot writes Min/Max_Position_Limit to the servos; we only propose
+Pattern: LeRobot's `SerialMotorsBus.record_ranges_of_motion` (src/lerobot/motors/motors_bus.py,
+huggingface/lerobot @ 45cca1a, 2026-10-26): track min/max Present_Position while the user moves each
+joint through its range by hand, torque off. What we change and why:
+- No EEPROM writes. LeRobot's `write_calibration` writes Min/Max_Position_Limit (and Homing_Offset)
+  to the servos, with no margin; we only propose
   software limits (hard rule), applied to config/arm_<name>.yaml after review.
 - A margin inward from the recorded extremes, so the limit sits short of the hard stop.
 - Wrap detection: a jump of more than half a turn between consecutive samples means the joint

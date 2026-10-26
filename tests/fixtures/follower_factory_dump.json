@@ -1,0 +1,1170 @@
+{
+ "source_run": "20261026-112606_regdump_follower",
+ "note": "trimmed copy of the follower factory register dump (raw + addr only)",
+ "servos": {
+  "shoulder_pan": {
+   "id": 1,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 1,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 3883,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 2176,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 119,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 31,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  },
+  "shoulder_lift": {
+   "id": 2,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 2,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 1690,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 1121,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 119,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 31,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  },
+  "elbow_flex": {
+   "id": 3,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 3,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 3245,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 2927,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 119,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 30,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  },
+  "wrist_flex": {
+   "id": 4,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 4,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 3708,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 2945,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 119,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 33,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  },
+  "wrist_roll": {
+   "id": 5,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 5,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 3518,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 1197,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 119,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 34,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  },
+  "gripper": {
+   "id": 6,
+   "responded": true,
+   "registers": {
+    "Firmware_Major": {
+     "raw": 3,
+     "addr": 0
+    },
+    "Firmware_Minor": {
+     "raw": 10,
+     "addr": 1
+    },
+    "Model": {
+     "raw": 777,
+     "addr": 3
+    },
+    "ID": {
+     "raw": 6,
+     "addr": 5
+    },
+    "Baud_Rate": {
+     "raw": 0,
+     "addr": 6
+    },
+    "Return_Delay": {
+     "raw": 0,
+     "addr": 7
+    },
+    "Response_Status_Level": {
+     "raw": 1,
+     "addr": 8
+    },
+    "Min_Angle_Limit": {
+     "raw": 0,
+     "addr": 9
+    },
+    "Max_Angle_Limit": {
+     "raw": 4095,
+     "addr": 11
+    },
+    "Max_Temperature_Limit": {
+     "raw": 70,
+     "addr": 13
+    },
+    "Max_Voltage_Limit": {
+     "raw": 140,
+     "addr": 14
+    },
+    "Min_Voltage_Limit": {
+     "raw": 40,
+     "addr": 15
+    },
+    "Max_Torque_Limit": {
+     "raw": 1000,
+     "addr": 16
+    },
+    "Phase": {
+     "raw": 12,
+     "addr": 18
+    },
+    "Unloading_Condition": {
+     "raw": 44,
+     "addr": 19
+    },
+    "LED_Alarm_Condition": {
+     "raw": 47,
+     "addr": 20
+    },
+    "P_Coefficient": {
+     "raw": 32,
+     "addr": 21
+    },
+    "D_Coefficient": {
+     "raw": 32,
+     "addr": 22
+    },
+    "I_Coefficient": {
+     "raw": 0,
+     "addr": 23
+    },
+    "Minimum_Startup_Force": {
+     "raw": 16,
+     "addr": 24
+    },
+    "CW_Dead_Zone": {
+     "raw": 1,
+     "addr": 26
+    },
+    "CCW_Dead_Zone": {
+     "raw": 1,
+     "addr": 27
+    },
+    "Protection_Current": {
+     "raw": 310,
+     "addr": 28
+    },
+    "Angular_Resolution": {
+     "raw": 1,
+     "addr": 30
+    },
+    "Offset": {
+     "raw": 640,
+     "addr": 31
+    },
+    "Mode": {
+     "raw": 0,
+     "addr": 33
+    },
+    "Protective_Torque": {
+     "raw": 20,
+     "addr": 34
+    },
+    "Protection_Time": {
+     "raw": 200,
+     "addr": 35
+    },
+    "Overload_Torque": {
+     "raw": 80,
+     "addr": 36
+    },
+    "Velocity_P": {
+     "raw": 10,
+     "addr": 37
+    },
+    "Over_Current_Protection_Time": {
+     "raw": 200,
+     "addr": 38
+    },
+    "Velocity_I": {
+     "raw": 200,
+     "addr": 39
+    },
+    "Torque_Enable": {
+     "raw": 0,
+     "addr": 40
+    },
+    "Acceleration": {
+     "raw": 0,
+     "addr": 41
+    },
+    "Goal_Position": {
+     "raw": 0,
+     "addr": 42
+    },
+    "Goal_Time": {
+     "raw": 0,
+     "addr": 44
+    },
+    "Goal_Speed": {
+     "raw": 0,
+     "addr": 46
+    },
+    "Torque_Limit": {
+     "raw": 1000,
+     "addr": 48
+    },
+    "Lock": {
+     "raw": 1,
+     "addr": 55
+    },
+    "Present_Position": {
+     "raw": 2126,
+     "addr": 56
+    },
+    "Present_Speed": {
+     "raw": 0,
+     "addr": 58
+    },
+    "Present_Load": {
+     "raw": 0,
+     "addr": 60
+    },
+    "Present_Voltage": {
+     "raw": 118,
+     "addr": 62
+    },
+    "Present_Temperature": {
+     "raw": 32,
+     "addr": 63
+    },
+    "Status": {
+     "raw": 0,
+     "addr": 65
+    },
+    "Moving": {
+     "raw": 0,
+     "addr": 66
+    },
+    "Present_Current": {
+     "raw": 0,
+     "addr": 69
+    }
+   }
+  }
+ }
+}
