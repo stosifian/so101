@@ -285,3 +285,29 @@ def test_real_follower_telemetry_with_adc_glitches_never_trips():
 def test_real_leader_telemetry_never_trips_with_leader_voltage_range():
     s = dataclasses.replace(SafetyConfig.from_arm_config(CFG), voltage_v=(4.5, 5.5))
     assert replay("leader", s) == 3001
+
+
+# --- speed -----------------------------------------------------------------------------------
+
+
+def test_set_speed_only_lowers_the_cap_and_reads_back():
+    b = bus()
+    with SafeArm(b, CFG, FAST) as arm:
+        arm.enable()
+        arm.set_speed("shoulder_pan", 50)
+        assert read(b, IDS["shoulder_pan"], "Goal_Speed") == 50
+        assert any(e.kind == "set_speed" and e.joint == "shoulder_pan" for e in arm.events)
+        for bad in (0, 201, 1000):
+            with pytest.raises(SafetyError, match="outside 1..200"):
+                arm.set_speed("shoulder_pan", bad)
+        with pytest.raises(SafetyError, match="unknown joint"):
+            arm.set_speed("pan", 50)
+        assert read(b, IDS["shoulder_pan"], "Goal_Speed") == 50  # refused calls wrote nothing
+
+
+def test_set_speed_refused_in_shadow_mode():
+    b = bus()
+    with SafeArm(b, CFG, FAST, shadow=True) as arm:
+        with pytest.raises(SafetyError, match="shadow"):
+            arm.set_speed("shoulder_pan", 50)
+    assert b.write_log == []

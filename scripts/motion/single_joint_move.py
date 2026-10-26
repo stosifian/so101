@@ -2,7 +2,13 @@
 
     uv run scripts/motion/single_joint_move.py --arm-moves --tui
     uv run scripts/motion/single_joint_move.py --arm-moves --joint shoulder_pan --amplitude 100 --speed 50 --cycles 2
+    uv run scripts/motion/single_joint_move.py --arm-moves --mode servo         # one goal per move, servo's own profile
     uv run scripts/motion/single_joint_move.py --arm-moves --sim                # same script on SimBus, no hardware
+
+Modes:
+  stream (default): the goal ramps at --speed, streamed every cycle (Goal_Speed stays at the cap).
+  servo: each move sends the final goal once; Goal_Speed is lowered to --speed via SafeArm.set_speed,
+         so the servo's internal profile runs the ramp. Needs |amplitude| <= max_step (100).
 
 Sequence: read the start position with torque off -> check the target is inside the software
 limits (else refuse before enabling) -> SafeArm.enable() -> per cycle: ramp out at --speed, hold
@@ -34,13 +40,18 @@ from so101.telemetry.live import LiveSession
 
 MAX_AMPLITUDE, MAX_SPEED = 300, 150  # first-move stage limits (config caps are 200 ticks/s, 100/step)
 SETTLE_TOL = 2  # ticks
+STICK_TOL = 4  # ticks; above the 1-3 tick steady-state error (step 5c), so holds don't count as stalls
 
 
 def analyse(rows: list[dict], joint: str, min_hold_samples: int = 30) -> dict:
     """Group the joint's samples into runs of identical commanded goal. A run of >= min_hold_samples
-    (0.3 s at 100 Hz) is a hold; anything shorter is part of a ramp (at 50 ticks/s the rounded goal
-    repeats every other cycle, so goal-unchanged alone does not mean stopped). Measures tracking
-    during ramps, and overshoot + settle time at each hold that follows a ramp."""
+    (0.3 s at 100 Hz) is a hold; shorter runs are part of a streamed ramp (at 50 ticks/s the rounded
+    goal repeats every other cycle). Every hold after the first is a stop at a new goal: in stream
+    mode it follows a ramp, in servo mode the goal stepped there and the servo is still travelling.
+
+    Stick-slip: among consecutive samples where the joint is > STICK_TOL from its goal (so it should
+    be moving, not just sitting at its steady-state error), the fraction where the position did not
+    change, and the longest such stall."""
     js = sorted((r for r in rows if r["joint"] == joint and r["goal"] is not None and r["position"] is not None),
                 key=lambda r: r["seq"])  # fmt: skip
     runs: list[list[dict]] = []
@@ -55,19 +66,26 @@ def analyse(rows: list[dict], joint: str, min_hold_samples: int = 30) -> dict:
             ramps += run_
             continue
         holds += run_
-        if k == 0 or len(runs[k - 1]) >= min_hold_samples:
-            continue  # hold not preceded by a ramp (e.g. the very start)
+        if k == 0:
+            continue
         target = run_[0]["goal"]
         direction = 1 if target > runs[k - 1][0]["goal"] else -1
         t_stop = run_[0]["t_start_ns"]
         over = max(direction * (r["position"] - target) for r in run_)
         settled_at = next(((run_[i]["t_start_ns"] - t_stop) / 1e6 for i in range(len(run_))
                            if all(abs(r["position"] - target) <= SETTLE_TOL for r in run_[i:])), None)  # fmt: skip
-        moving_off = next(((r["t_start_ns"] - t_stop) / 1e6 for r in run_ if r["moving"] == 0), None)
+        last_moving = max((i for i, r in enumerate(run_) if r["moving"]), default=-1)
+        moving_off = (run_[last_moving + 1]["t_start_ns"] - t_stop) / 1e6 if last_moving + 1 < len(run_) else None
         stops.append({"target": target, "direction": direction, "overshoot_ticks": max(over, 0),
                       "settle_ms": settled_at, "moving_zero_after_ms": moving_off,
                       "final_error": run_[-1]["position"] - target})  # fmt: skip
     err = [abs(r["goal"] - r["position"]) for r in ramps]
+    should_move = [(a, b) for a, b in zip(js, js[1:]) if abs(b["goal"] - a["position"]) > STICK_TOL]
+    stuck_flags = [b["position"] == a["position"] for a, b in should_move]
+    longest = cur = 0
+    for (a, b), stuck in zip(should_move, stuck_flags):
+        cur = cur + (b["t_start_ns"] - a["t_start_ns"]) if stuck else 0
+        longest = max(longest, cur)
     return {
         "ramp_samples": len(ramps),
         "hold_samples": len(holds),
@@ -78,6 +96,8 @@ def analyse(rows: list[dict], joint: str, min_hold_samples: int = 30) -> dict:
         "load_med_ramp_pct": median(abs(r["load"]) for r in ramps) / 10 if ramps else None,
         "load_med_hold_pct": median(abs(r["load"]) for r in holds) / 10 if holds else None,
         "current_max_units": max((r["current"] for r in js), default=None),
+        "stuck_frac_while_off_goal": sum(stuck_flags) / len(stuck_flags) if stuck_flags else None,
+        "longest_stall_ms": longest / 1e6,
         "stops": stops,
     }
 
@@ -89,6 +109,7 @@ def main() -> None:
     ap.add_argument("--amplitude", type=int, default=100, help=f"ticks (|value| <= {MAX_AMPLITUDE}); sign = direction")
     ap.add_argument("--speed", type=float, default=50.0, help=f"ramp speed, ticks/s (<= {MAX_SPEED})")
     ap.add_argument("--cycles", type=int, default=2)
+    ap.add_argument("--mode", choices=["stream", "servo"], default="stream", help="see module docstring")
     ap.add_argument("--hold-s", type=float, default=2.0)
     ap.add_argument("--after-s", type=float, default=1.5)
     ap.add_argument("--rate", type=float, default=100.0)
@@ -114,7 +135,8 @@ def main() -> None:
         bus = FeetechBus(cfg.port, cfg.baudrate, cfg.protocol_end)
     kind = "move_sim" if args.sim else "move"
     run = Run(kind, "follower", config_paths=[cfg.path],
-              notes=f"step 5c {args.joint} {args.amplitude:+d} ticks @ {args.speed:g}/s x{args.cycles}; sim={args.sim}; "
+              notes=f"step 5c {args.joint} {args.amplitude:+d} ticks @ {args.speed:g}/s x{args.cycles} mode={args.mode}; "
+                    f"sim={args.sim}; "
                     f"{args.notes}")  # fmt: skip
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
                        title=f"[TORQUE ON: MOVING {args.joint}] {run.run_id} — Ctrl-C = torque off")  # fmt: skip
@@ -135,10 +157,19 @@ def main() -> None:
                     raise SafetyError(f"{args.joint}: start {p0:.0f} or target {target:.0f} outside limits [{lo}, {hi}]; "
                                       "not enabling")  # fmt: skip
                 a, b = {args.joint: p0}, {args.joint: target}
-                segs = [s for _ in range(args.cycles) for s in (Segment(a, b, args.speed), Segment(b, a, args.speed))]
-                goal_fn, total = sequence(segs, settle_s=args.hold_s)
-                result["plan"] = {"start": p0, "target": target, "total_s": total}
+                if args.mode == "servo":
+                    if abs(args.amplitude) > arm.safety.max_step:
+                        raise SafetyError(f"servo mode needs |amplitude| <= max_step ({arm.safety.max_step}); not enabling")
+                    jump = 1e9  # the goal steps to the target at once; the servo's profile does the ramp
+                    segs = [s for _ in range(args.cycles) for s in (Segment(a, b, jump), Segment(b, a, jump))]
+                    goal_fn, total = sequence(segs, settle_s=abs(args.amplitude) / args.speed + args.hold_s)
+                else:
+                    segs = [s for _ in range(args.cycles) for s in (Segment(a, b, args.speed), Segment(b, a, args.speed))]
+                    goal_fn, total = sequence(segs, settle_s=args.hold_s)
+                result["plan"] = {"start": p0, "target": target, "total_s": total, "mode": args.mode}
                 result["enable"] = arm.enable()
+                if args.mode == "servo":
+                    arm.set_speed(args.joint, int(args.speed))
                 marks["move_start_ns"] = time.monotonic_ns()
                 result["loop"] = control_loop(arm, args.rate, goal_fn, total, live.stop)
                 marks["torque_off_ns"] = time.monotonic_ns()
@@ -191,6 +222,9 @@ def main() -> None:
         console.print(f"clamps: {dict((f'{j}:{k}', n) for (j, k), n in arm.clamps.items()) or 'none'}")
     if result.get("disable_failed"):
         console.print(f"[red]could not confirm torque off on {result['disable_failed']} — cut 12 V")
+    if stats.get("stuck_frac_while_off_goal") is not None:
+        console.print(f"{args.joint} stick-slip: stuck in {stats['stuck_frac_while_off_goal']:.0%} of samples while "
+                      f"> {STICK_TOL} ticks off goal; longest stall {stats['longest_stall_ms']:.0f} ms")  # fmt: skip
     if stats.get("ramp_samples"):
         console.print(
             f"{args.joint}: ramp tracking |goal−pos| median {stats['ramp_err_median']:.0f} / max {stats['ramp_err_max']} ticks; "
@@ -199,7 +233,7 @@ def main() -> None:
             f"current max {stats['current_max_units']} units"
         )
         table = Table(title="stops", title_justify="left")
-        for col in ["target", "dir", "overshoot", "settle ms (±2)", "Moving→0 ms", "final err"]:
+        for col in ["target", "dir", "overshoot", "within ±2 after (ms)", "Moving→0 (ms)", "final err"]:
             table.add_column(col, justify="right")
         for s in stats["stops"]:
             table.add_row(str(s["target"]), f"{s['direction']:+d}", str(s["overshoot_ticks"]),

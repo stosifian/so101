@@ -212,6 +212,23 @@ class SafeArm:
             self._event("reset", None, "trip acknowledged")
             self.state = State.DISABLED
 
+    # --- speed ---------------------------------------------------------------------------
+
+    def set_speed(self, joint: str, ticks_s: int) -> None:
+        """Lower one joint's Goal_Speed below the configured cap (e.g. to let the servo's own profile
+        run a slow move). Never above the cap; enable() resets every joint to the cap."""
+        if not self._entered:
+            raise SafetyError("use SafeArm as a context manager (with SafeArm(...) as arm:)")
+        if joint not in self.cfg.joints:
+            raise SafetyError(f"unknown joint {joint!r}")
+        if not 1 <= ticks_s <= self.safety.speed_cap:
+            raise SafetyError(f"speed {ticks_s} outside 1..{self.safety.speed_cap} ticks/s (the configured cap)")
+        sid = self.cfg.joints[joint]
+        self._write(sid, "Goal_Speed", int(ticks_s))
+        if (got := read(self.bus, sid, "Goal_Speed")) != ticks_s:
+            raise SafetyError(f"{joint}: Goal_Speed read back {got}, wrote {ticks_s}")
+        self._event("set_speed", joint, f"Goal_Speed {ticks_s} ticks/s")
+
     # --- control cycle ---------------------------------------------------------------------
 
     def step(self, goals: dict[str, float] | None = None) -> StepResult:
