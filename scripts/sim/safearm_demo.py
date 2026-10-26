@@ -39,7 +39,8 @@ FAULTS = {
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tui", action="store_true")
-    ap.add_argument("--viz", action="store_true")
+    ap.add_argument("--viz", action=argparse.BooleanOptionalAction, default=True,
+                    help="live Rerun plots, saved as telemetry.rrd (default on; the viewer settles before torque-on)")
     ap.add_argument("--rate", type=float, default=100.0)
     ap.add_argument("--amplitude", type=int, default=200, help="ticks per joint move (default 200, ~18 deg)")
     ap.add_argument("--speed", type=float, default=150.0, help="ramp speed, ticks/s (cap is 200)")

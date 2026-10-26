@@ -39,7 +39,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--arm-moves", action="store_true", help="required for every scripts/motion/ script")
     ap.add_argument("--tui", action="store_true")
-    ap.add_argument("--viz", action="store_true")
+    ap.add_argument("--viz", action=argparse.BooleanOptionalAction, default=True,
+                    help="live Rerun plots, saved as telemetry.rrd (default on; the viewer settles before torque-on)")
     ap.add_argument("--seconds", type=float, default=60.0)
     ap.add_argument("--rate", type=float, default=100.0)
     ap.add_argument("--notes", default="")

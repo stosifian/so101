@@ -93,7 +93,8 @@ def main() -> None:
     ap.add_argument("--after-s", type=float, default=1.5)
     ap.add_argument("--rate", type=float, default=100.0)
     ap.add_argument("--tui", action="store_true")
-    ap.add_argument("--viz", action="store_true", help="off by default: viewer startup disturbs timing")
+    ap.add_argument("--viz", action=argparse.BooleanOptionalAction, default=True,
+                    help="live Rerun plots, saved as telemetry.rrd (default on; the viewer settles before torque-on)")
     ap.add_argument("--notes", default="")
     ap.add_argument("--sim", action="store_true", help="use SimBus instead of the arm")
     args = ap.parse_args()

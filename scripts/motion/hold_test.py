@@ -8,7 +8,7 @@ torque on, read back) -> monitor for --seconds with every trip active -> torque 
 for --after-s so the log shows what the joints do once released (elbow settles ~4 deg onto its stop).
 
 Setup: follower clamped, rest pose, hand NEAR the arm (not holding it), 12 V switch within reach.
-Stop early with Ctrl-C (torque off) or by cutting 12 V. Rerun is off by default to keep timing clean.
+Stop early with Ctrl-C (torque off) or by cutting 12 V. Live Rerun plots are on by default (--no-viz to skip).
 Writes data/raw/<run_id>/ (kind hold) + safety_events.json + hold_test.json.
 """
 
@@ -36,7 +36,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--arm-moves", action="store_true", help="required for every scripts/motion/ script")
     ap.add_argument("--tui", action="store_true")
-    ap.add_argument("--viz", action="store_true", help="off by default: viewer startup disturbs timing")
+    ap.add_argument("--viz", action=argparse.BooleanOptionalAction, default=True,
+                    help="live Rerun plots, saved as telemetry.rrd (default on; the viewer settles before torque-on)")
     ap.add_argument("--seconds", type=float, default=20.0, help="hold duration with torque on")
     ap.add_argument("--after-s", type=float, default=1.5, help="keep logging this long after torque off")
     ap.add_argument("--rate", type=float, default=100.0)
