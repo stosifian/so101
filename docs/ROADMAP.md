@@ -7,8 +7,8 @@
 | 0 | Repo bootstrap (uv env, git, notes, permissions) | done 2026-10-26 |
 | 1 | Port discovery, follower/leader mapping | done 2026-10-26 |
 | 2 | Read-only register dump (all 12 servos) | done 2026-10-26 (runs 20261026-112606_regdump_*) |
-| 3 | Torque-off live readout + telemetry (Rerun, TUI, parquet); record safe tick limits; leader by-hand sweep | |
-| 4 | Safety layer (`SafeArm`) + mock tests. Must include: goal:=present + speed/accel caps before torque-on; software limits (no firmware limits set); temp trip well below the 70 °C firmware limit; **one owner per bus**: SafeArm's loop claims the follower bus (no poller runs) and does read → safety check → write → publish; safety checks run inline, not as a hub consumer; samples carry the commanded goal; temp/voltage trips debounced (single-sample glitches seen on the leader at step 3) | |
+| 3 | Torque-off live readout + telemetry (Rerun, TUI, parquet); record safe tick limits; leader by-hand sweep | done 2026-10-26 (sweeps 20261026-130808_telemetry_follower, 20261026-131126_telemetry_leader) |
+| 4 | Safety layer (`SafeArm`) + mock tests. Must include: goal:=present + speed/accel caps before torque-on; software limits (no firmware limits set); temp trip well below the 70 °C firmware limit; **one owner per bus**: SafeArm's loop claims the follower bus (no poller runs) and does read → safety check → write → publish; safety checks run inline, not as a hub consumer; samples carry the commanded goal; temp/voltage trips debounced (single-sample ADC glitches on IDs 4–6, both arms, step 3); **starting outside limits** (rest pose: elbow_flex, gripper) must be allowed, with moves permitted only back toward the range, never a clamp-jump | |
 | 5 | First powered move (one joint, slow) | |
 | 6 | Per-joint sweeps with logging | |
 | 7 | Home calibration (own zero offsets, no EEPROM) | |

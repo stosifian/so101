@@ -11,3 +11,12 @@ joints:
   wrist_roll: 5
   gripper: 6
 expected_voltage_v: [4.5, 5.5]
+# Swept range (no margin): nothing is commanded on the leader; used for teleop mapping only.
+# By-hand torque-off sweep 20261026-131126_telemetry_leader, approved 2026-10-26.
+range_ticks:         # [min, max]
+  shoulder_pan:  [740, 3182]
+  shoulder_lift: [1003, 3135]
+  elbow_flex:    [717, 2916]
+  wrist_flex:    [851, 3187]
+  wrist_roll:    [170, 3974]     # 3804 ticks, 292 short of a full turn
+  gripper:       [2042, 3279]

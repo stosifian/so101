@@ -11,4 +11,15 @@ joints:                            # name: servo id
   wrist_roll: 5
   gripper: 6
 expected_voltage_v: [11.0, 13.0]
-# limits_ticks / speed caps / stall thresholds are filled in at step 3-4
+# Software joint limits (enforced by SafeArm; no firmware limits are set). Swept range minus a
+# 50-tick margin (~4.4 deg) each end. By-hand torque-off sweep 20261026-130808_telemetry_follower, approved 2026-10-26.
+# Rest pose is outside two of these (elbow_flex 2927, gripper ~2045): SafeArm must allow
+# moves back toward the range, never clamp-jump.
+limits_ticks:        # [min, max]      swept range
+  shoulder_pan:  [969, 3404]     # 919..3454
+  shoulder_lift: [1053, 3158]    # 1003..3208
+  elbow_flex:    [765, 2878]     # 715..2928
+  wrist_flex:    [996, 2975]     # 946..3025
+  wrist_roll:    [341, 3438]     # 291..3488
+  gripper:       [2082, 3447]    # 2032..3497
+# speed caps / stall thresholds are filled in at step 4

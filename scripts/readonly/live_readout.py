@@ -4,11 +4,13 @@
     uv run scripts/readonly/live_readout.py --arm leader --seconds 30 --notes "by-hand sweep"
     uv run scripts/readonly/live_readout.py --tui                   # live table in the terminal
     uv run scripts/readonly/live_readout.py --tui --viz             # + live Rerun plots
+    uv run scripts/readonly/live_readout.py --tui --arm follower --record-limits   # by-hand range sweep
 
 Writes data/raw/<run_id>/ (header.json, telemetry/part-*.parquet, telemetry_summary.json, and
 telemetry.rrd with --viz; replay it with `uv run rerun <run_dir>/telemetry.rrd`). On exit, reads
-the parquet back and prints a per-joint summary.
-Coming next: limit recording (3f).
+the parquet back and prints a per-joint summary. With --record-limits it also proposes software
+limits from the sweep (data/derived/<run_id>/limits_proposed.json + a yaml snippet). It never
+edits config; limits are applied to config/arm_<name>.yaml by hand after review.
 """
 
 import argparse
@@ -21,6 +23,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 
+from so101.analysis.limits import propose_from_run, save_proposal, yaml_snippet
 from so101.config import load_arm_config
 from so101.hw.arm import Arm
 from so101.hw.bus import FeetechBus
@@ -58,6 +61,26 @@ def print_readback(console: Console, run: Run) -> None:
     console.print(table)
 
 
+def print_limits(console: Console, run: Run, margin: int) -> None:
+    limits = propose_from_run(run.dir, margin)
+    path = save_proposal(run.run_id, margin, limits)
+    for arm, joints in limits.items():
+        table = Table(title=f"{arm} — proposed software limits (margin {margin} ticks)", title_justify="left")
+        for col in ["joint", "status", "swept min", "swept max", "range", "limit min", "limit max", "spikes"]:
+            table.add_column(col, justify="left" if col in ("joint", "status") else "right")
+        for joint, l in joints.items():
+            style = "green" if l.status == "ok" else "yellow"
+            table.add_row(
+                joint, f"[{style}]{l.status}", str(l.raw_min), str(l.raw_max),
+                str(l.raw_max - l.raw_min) if l.raw_min is not None else "—",
+                str(l.proposed[0]) if l.proposed else "—", str(l.proposed[1]) if l.proposed else "—",
+                str(l.spikes_dropped),
+            )  # fmt: skip
+        console.print(table)
+        console.print(yaml_snippet(run.run_id, margin, joints), markup=False, highlight=False)
+    console.print(f"proposal saved: {path}  (config not changed)")
+
+
 def poller_line(p: Poller) -> str:
     s = p.stats
     return (
@@ -74,6 +97,8 @@ def main() -> None:
     ap.add_argument("--notes", default="", help="free text stored in the run header")
     ap.add_argument("--tui", action="store_true", help="live joint table in the terminal")
     ap.add_argument("--viz", action="store_true", help="live Rerun plots (also saved as telemetry.rrd)")
+    ap.add_argument("--record-limits", action="store_true", help="propose software limits from this sweep")
+    ap.add_argument("--margin", type=int, default=50, help="ticks inward from the swept extremes (default 50)")
     args = ap.parse_args()
 
     console = Console()
@@ -120,18 +145,22 @@ def main() -> None:
         for p in pollers:
             p.stop()
         summary = logger.stop()
-        if viz:
-            viz.close()
         for b in buses:
             b.close()
+        if viz:
+            viz.close()
 
     for p in pollers:
         console.print(poller_line(p))
     console.print(f"logger: {summary}")
     if viz:
         console.print(f"rerun: {viz.samples} samples, viz dropped {viz.sub.dropped} → {run.dir / 'telemetry.rrd'}")
+        if viz.close_error:
+            console.print(f"[yellow]rerun viewer was gone at shutdown ({viz.close_error}); parquet is unaffected")
     if summary["rows"]:
         print_readback(console, run)
+    if args.record_limits and summary["rows"]:
+        print_limits(console, run, args.margin)
 
 
 if __name__ == "__main__":

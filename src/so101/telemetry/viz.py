@@ -49,12 +49,16 @@ class RerunView:
         if spawn:
             rr.spawn(connect=False, recording=self.rec)  # start the viewer; set_sinks connects below
             sinks.insert(0, rr.GrpcSink())
-        rr.set_sinks(*sinks, default_blueprint=blueprint(arms), recording=self.rec)
+        rr.set_sinks(*sinks, recording=self.rec)
+        # send_blueprint, not set_sinks(default_blueprint=...): a viewer left open from an earlier run keeps
+        # that run's active layout (e.g. /leader/... plots), so a follower-only run showed nothing (step 3f).
+        rr.send_blueprint(blueprint(arms), make_active=True, recording=self.rec)
         if spawn:
             # A freshly launched viewer stalls other threads for ~0.5 s around 1 s after start (step 3e:
             # reads up to 33 ms, skipped poll slots). Let it settle before anything time-critical starts.
             time.sleep(VIEWER_SETTLE_S)
         self.samples = 0
+        self.close_error: str | None = None
 
     def update(self) -> None:
         """Drain pending samples and send them as one column batch per entity."""
@@ -82,6 +86,12 @@ class RerunView:
         self.samples += len(batch)
 
     def close(self) -> None:
-        self.update()
-        self.rec.flush()
-        rr.disconnect(recording=self.rec)
+        """Best effort: a closed viewer (or Ctrl-C reaching it) must not break shutdown of the run.
+        The .rrd file sink still gets everything sent before the viewer went away."""
+        try:
+            self.update()
+            self.rec.flush()
+        except RuntimeError as e:  # e.g. "gRPC connection severed" (step 3f)
+            self.close_error = str(e)
+        finally:
+            rr.disconnect(recording=self.rec)
