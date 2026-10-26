@@ -1,10 +1,10 @@
 # SO-101 project — working context
 
 Spec: `so101-metrology-plan.md` (hardware, Phase 2 metrology spec, conventions).
-Roadmap + Phase 2/3 handoff: `docs/ROADMAP.md`. Hardware facts/port map: `docs/hardware_log.md`.
+Roadmap + Phase 2/3 handoff: `docs/ROADMAP.md`. **Phase 1 plan + deviation log: `docs/phase-1-plan.md`.** Hardware facts/port map: `docs/hardware_log.md`.
 
 ## Current phase
-**Phase 1 — bring-up.** Progress is tracked in the step table in `docs/ROADMAP.md`.
+**Phase 1 — bring-up.** Progress is tracked in `docs/phase-1-plan.md`. **Whenever the plan changes (a step added, split, reordered, reframed or dropped, or a decision that changes scope), update its table and add a dated entry to its deviation log in the same change**, then sync the short summary in `docs/ROADMAP.md`.
 Working style: Claude scaffolds one step at a time with a walkthrough; the user reviews and runs it on hardware; advance only after the checkpoint passes.
 
 ## Hard rules

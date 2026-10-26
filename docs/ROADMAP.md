@@ -2,20 +2,20 @@
 
 ## Phase 1 — bring-up & function (inside the 30-day return window)
 
+**Plan, status and deviation log: [`docs/phase-1-plan.md`](phase-1-plan.md)** (source of truth; updated on every change).
+
 | # | Step | Status |
 |---|------|--------|
-| 0 | Repo bootstrap (uv env, git, notes, permissions) | done 2026-10-26 |
-| 1 | Port discovery, follower/leader mapping | done 2026-10-26 |
-| 2 | Read-only register dump (all 12 servos) | done 2026-10-26 (runs 20261026-112606_regdump_*) |
-| 3 | Torque-off live readout + telemetry (Rerun, TUI, parquet); record safe tick limits; leader by-hand sweep | done 2026-10-26 (sweeps 20261026-130808_telemetry_follower, 20261026-131126_telemetry_leader) |
-| 4 | Safety layer (`SafeArm`) + mock tests. Must include: goal:=present + speed/accel caps before torque-on; software limits (no firmware limits set); temp trip well below the 70 °C firmware limit; **one owner per bus**: SafeArm's loop claims the follower bus (no poller runs) and does read → safety check → write → publish; safety checks run inline, not as a hub consumer; samples carry the commanded goal; temp/voltage trips debounced (single-sample ADC glitches on IDs 4–6, both arms, step 3); **starting outside limits** (rest pose: elbow_flex, gripper) must be allowed, with moves permitted only back toward the range, never a clamp-jump | done 2026-10-26 (sim-tested: `scripts/sim/safearm_demo.py`; 122 tests) |
-| 5 | First powered move, staged: 5a shadow mode **(passed 2026-10-26, run 20261026-142826_shadow_follower)** (torque off, no writes) → 5b torque-on hold **(passed, runs 20261026-144830 + push test 20261026-145026)** → 5c one joint, small, slow. Verify `Moving` semantics, tracking, overshoot, jitter (P 32 vs 16); compare with SimBus. **Parking:** joints end at their soft limit; at torque-off the elbow settles the last ~4° (2878 → 2927) onto its rest stop, so keep a hand on it | done 2026-10-26 (5c run 20261026-145837_move_follower) |
-| 6 | Per-joint sweeps with logging | |
-| 7 | Home calibration (own zero offsets, no EEPROM) | |
-| 8 | FK from URDF (parameterized). **Plus a collision model:** link shapes from the URDF + table plane + base; distance queries via an existing library (pinocchio + coal/hpp-fcl, since LeRobot has no collision checking). Regression case: rest pose with wrist_roll ≈ 2650 must be flagged (gripper vs shoulder, step 6) | |
-| 9 | IK (DLS, joint-limit aware) + Cartesian demo. **Collision checks in the loop:** every plan validated before torque-on; SafeArm checks each goal and freezes on predicted contact. Then relax the rest-pose wrist_roll limit (2550) where the pose allows | |
-| 10 | 15-min endurance/thermal loop + gripper squeeze | |
-| 11 | Phase 1 acceptance write-up, go/no-go | |
+| 0–2 | Bootstrap, ports, register dump | done 2026-10-26 |
+| 3 | Torque-off telemetry + limit sweeps | done 2026-10-26 |
+| 4 | SafeArm + mock/sim tests | done 2026-10-26 |
+| 5 | First powered move (5a shadow → 5b hold → 5c move → 5d stick-slip) | done 2026-10-26 |
+| 6 | Per-joint sweeps: 6a contact detection → 6b sweeps from a clear pose → 6c `wait_until_settled` → 6d timing | in progress |
+| 7 | Calibration: ticks → MuJoCo Menagerie model mapping | planned |
+| 8 | Parameterized FK + MuJoCo collision model + measured table plane | planned |
+| 9 | IK + collision-checked motion; relax wrist_roll limit; wide sweeps; Cartesian demo | planned |
+| 10 | Endurance/thermal loop, gripper squeeze (current scale), manifest | planned |
+| 11 | Acceptance write-up, go/no-go | planned |
 
 ## Phase 2 — camera metrology (spec §5–§9)
 
