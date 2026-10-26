@@ -43,6 +43,12 @@ Runs: follower `20261026-130808_telemetry_follower`, leader `20261026-131126_tel
 - shoulder_lift lower stop (1003) and elbow_flex lower stop (715/717) match across arms, so the factory homing offsets line up. shoulder_pan stops differ by ~200–270 ticks.
 - No wrap through 0/4095 on any joint. Leader wrist_roll is nearly a full turn.
 
+## Per-joint sweeps (step 6, P=32, 150 ticks/s, hold 1 s; steady state = last 0.5 s of each hold)
+Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − err↑ (approach-direction effect).
+| Joint | Run | Profile / travel | err ↑ | err ↓ | Hysteresis | Holding load | Jitter | Stuck while moving | Notes |
+|-------|-----|------------------|-------|-------|------------|--------------|--------|--------------------|-------|
+| shoulder_pan | 20261026-160702_sweep_follower | generic, 1578–2795 (107°) | −1…−2 | +2…+3 | 3–5 ticks (0.26–0.44°), uniform across range | ±2.4 % (friction only) | 0 | 5 % | no trips, lag 20 ticks |
+
 ## Telemetry quirks
 - **V/°C ADC glitches on IDs 4–6 (both arms):** ~0.2–1.6 % of samples read low voltage / high temperature for a single sample. The value really is in the servo register (block and single-register reads agree), so it's servo-side. Debounce any trip on V/°C. Positions have shown no spikes.
 - **Status bit 0 (voltage) follows the ADC glitches:** the leader gripper sets Status=0x01 on exactly the samples where its voltage glitches to 3.6–3.9 V, below the 4.0 V `Min_Voltage_Limit` that every servo has (27 of ~264k samples across all step 3 runs; never on the follower, whose glitches only reach ~10.4 V). The voltage/overheat Status and error-byte bits are therefore debounced in SafeArm; overload/overcurrent/angle bits trip at once.
