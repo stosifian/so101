@@ -8,7 +8,7 @@
 | 1 | Port discovery, follower/leader mapping | done 2026-10-26 |
 | 2 | Read-only register dump (all 12 servos) | done 2026-10-26 (runs 20261026-112606_regdump_*) |
 | 3 | Torque-off live readout + telemetry (Rerun, TUI, parquet); record safe tick limits; leader by-hand sweep | |
-| 4 | Safety layer (`SafeArm`) + mock tests. Must include: goal:=present + speed/accel caps before torque-on; software limits (no firmware limits set); temp trip well below the 70 °C firmware limit | |
+| 4 | Safety layer (`SafeArm`) + mock tests. Must include: goal:=present + speed/accel caps before torque-on; software limits (no firmware limits set); temp trip well below the 70 °C firmware limit; **one owner per bus**: SafeArm's loop claims the follower bus (no poller runs) and does read → safety check → write → publish; safety checks run inline, not as a hub consumer; samples carry the commanded goal; temp/voltage trips debounced (single-sample glitches seen on the leader at step 3) | |
 | 5 | First powered move (one joint, slow) | |
 | 6 | Per-joint sweeps with logging | |
 | 7 | Home calibration (own zero offsets, no EEPROM) | |
@@ -25,6 +25,13 @@
 - A manifest with optional camera fields; the Phase 2 capture loop extends it, not replaces it.
 - A parameterized FK. The kinematic fit adjusts link offsets, joint zero offsets, and the target→wrist transform (6 DoF).
 - Phase 1 thermal-loop data kept as a drift baseline.
+
+**Phase 1 copies LeRobot patterns by default (CLAUDE.md). Re-check these before Phase 2 relies on them:**
+- LeRobot defaults target teleop, not metrology: PID (P=16), accel and speed profiles, settle logic. Measure rather than inherit.
+- Copied patterns are pinned to a LeRobot commit. Don't silently re-sync to a newer version mid-campaign; it changes the baseline.
+- Servo V/T registers on IDs 4–6 glitch in ~1 % of samples (servo ADC, both arms; step 3). Median-filter temperature/voltage before the thermal-drift analysis.
+- Anything LeRobot lacks (Moving-based settling with `approach_dir`, parameterized FK, kinematic fit) is ours and gets its own tests.
+- If a copied piece limits accuracy (e.g. sync-read timing skew across joints, clamping behaviour), replace it behind its interface (`ServoBus`/`Arm`/`SafeArm`/`Sensor`) and record why in the decision log.
 
 **To do in Phase 2:**
 - gphoto2 ↔ A7 IV validation (50 consecutive captures). Sony Remote SDK is the fallback behind the same `Sensor` interface.
