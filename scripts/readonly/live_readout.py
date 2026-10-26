@@ -3,10 +3,12 @@
     uv run scripts/readonly/live_readout.py                         # both arms, 100 Hz, until Ctrl-C
     uv run scripts/readonly/live_readout.py --arm leader --seconds 30 --notes "by-hand sweep"
     uv run scripts/readonly/live_readout.py --tui                   # live table in the terminal
+    uv run scripts/readonly/live_readout.py --tui --viz             # + live Rerun plots
 
-Writes data/raw/<run_id>/ (header.json, telemetry/part-*.parquet, telemetry_summary.json) and,
-on exit, reads the parquet back and prints a per-joint summary.
-Coming next: --viz (3e), limit recording (3f).
+Writes data/raw/<run_id>/ (header.json, telemetry/part-*.parquet, telemetry_summary.json, and
+telemetry.rrd with --viz; replay it with `uv run rerun <run_dir>/telemetry.rrd`). On exit, reads
+the parquet back and prints a per-joint summary.
+Coming next: limit recording (3f).
 """
 
 import argparse
@@ -27,6 +29,7 @@ from so101.telemetry.hub import Hub
 from so101.telemetry.parquet_log import ParquetLogger
 from so101.telemetry.poller import Poller
 from so101.telemetry.tui import Tui
+from so101.telemetry.viz import RerunView
 
 
 def print_readback(console: Console, run: Run) -> None:
@@ -70,6 +73,7 @@ def main() -> None:
     ap.add_argument("--seconds", type=float, default=None, help="stop after this long (default: Ctrl-C)")
     ap.add_argument("--notes", default="", help="free text stored in the run header")
     ap.add_argument("--tui", action="store_true", help="live joint table in the terminal")
+    ap.add_argument("--viz", action="store_true", help="live Rerun plots (also saved as telemetry.rrd)")
     args = ap.parse_args()
 
     console = Console()
@@ -82,6 +86,10 @@ def main() -> None:
     if args.tui:
         tui = Tui(hub.subscribe("tui", maxlen=500), {c.name: c.expected_voltage_v for c in cfgs},
                   title=f"{run.run_id} — Ctrl-C to stop")  # fmt: skip
+    viz = None
+    if args.viz:
+        viz = RerunView(hub.subscribe("viz", maxlen=5000), names, run.path("telemetry.rrd"), run.run_id,
+                        run.header["started_monotonic_ns"])  # fmt: skip
     buses, pollers = [], []
     try:
         for cfg in cfgs:
@@ -96,6 +104,8 @@ def main() -> None:
         with Live(tui.render(), console=console, refresh_per_second=10) if tui else _null() as live:
             while t_end is None or time.monotonic() < t_end:
                 time.sleep(0.1)
+                if viz:
+                    viz.update()
                 if tui:
                     tui.footer = [poller_line(p) for p in pollers] + [f"logger: {logger.samples} samples"]
                     tui.update()
@@ -110,12 +120,16 @@ def main() -> None:
         for p in pollers:
             p.stop()
         summary = logger.stop()
+        if viz:
+            viz.close()
         for b in buses:
             b.close()
 
     for p in pollers:
         console.print(poller_line(p))
     console.print(f"logger: {summary}")
+    if viz:
+        console.print(f"rerun: {viz.samples} samples, viz dropped {viz.sub.dropped} → {run.dir / 'telemetry.rrd'}")
     if summary["rows"]:
         print_readback(console, run)
 
