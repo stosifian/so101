@@ -1,0 +1,13 @@
+# Leader arm (black), mixed gearing, 5 V supply. Read-only use only.
+name: leader
+port: /dev/cu.usbmodem5B901013071   # CH343 board, USB serial 5B90101307 (verified 2026-10-26 by voltage probe: 4.9 V)
+baudrate: 1000000
+protocol_end: 0
+joints:
+  shoulder_pan: 1
+  shoulder_lift: 2
+  elbow_flex: 3
+  wrist_flex: 4
+  wrist_roll: 5
+  gripper: 6
+expected_voltage_v: [4.5, 5.5]

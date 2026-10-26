@@ -1,0 +1,14 @@
+# Follower arm (white), 6x Feetech STS3215 1:345, 12 V supply.
+name: follower
+port: /dev/cu.usbmodem5B901032551   # CH343 board, USB serial 5B90103255 (verified 2026-10-26 by voltage probe)
+baudrate: 1000000
+protocol_end: 0                    # STS series
+joints:                            # name: servo id
+  shoulder_pan: 1
+  shoulder_lift: 2
+  elbow_flex: 3
+  wrist_flex: 4
+  wrist_roll: 5
+  gripper: 6
+expected_voltage_v: [11.0, 13.0]
+# limits_ticks / speed caps / stall thresholds are filled in at step 3-4

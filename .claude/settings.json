@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(uv run*scripts/motion/*)",
+      "Bash(python*scripts/motion/*)",
+      "Bash(*scripts/motion/*)"
+    ]
+  }
+}

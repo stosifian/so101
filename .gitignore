@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+# raw data is immutable and large; tracked by run_id in notes, not git
+data/raw/
+data/derived/
+*.rrd
