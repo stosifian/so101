@@ -24,6 +24,7 @@ TEMP_WARN_C, TEMP_HOT_C = 50, 60  # display colours only; firmware trips at 70 (
 class JointView:
     last: JointState | None = None
     error: str | None = None
+    goal: int | None = None  # last commanded Goal_Position (SafeArm runs only)
     pos_min: int | None = None
     pos_max: int | None = None
     volts: deque = field(default_factory=lambda: deque(maxlen=MEDIAN_WINDOW))
@@ -70,15 +71,18 @@ class Tui:
             view.samples += 1
             view.recent_t_ns.append(sample.snapshot.t_start_ns)
             for joint, state in sample.snapshot.joints.items():
-                view.joints.setdefault(joint, JointView()).add(state, sample.snapshot.errors.get(joint))
+                jv = view.joints.setdefault(joint, JointView())
+                jv.add(state, sample.snapshot.errors.get(joint))
+                if sample.goals and joint in sample.goals:
+                    jv.goal = sample.goals[joint]
 
     def _arm_table(self, name: str, view: ArmView) -> Table:
         t = Table(
             title=f"{name}  {view.rate_hz:5.1f} Hz  samples {view.samples}  seq gaps {view.seq_gaps}",
             title_justify="left",
         )
-        for col in ["joint", "pos", "min", "max", "range", "speed", "load %", "V (med)", "°C (med)", "status",
-                    "moving", "mA"]:  # fmt: skip
+        for col in ["joint", "pos", "goal", "min", "max", "range", "speed", "load %", "V (med)", "°C (med)",
+                    "status", "moving", "mA"]:  # fmt: skip
             t.add_column(col, justify="left" if col == "joint" else "right")
         lo_v, hi_v = view.expected_voltage_v
         for joint, jv in view.joints.items():
@@ -90,7 +94,8 @@ class Tui:
             temp = median(jv.temps)
             t.add_row(
                 Text(joint, style="red" if jv.error else ""),
-                str(s.position), str(jv.pos_min), str(jv.pos_max), str(jv.pos_max - jv.pos_min),
+                str(s.position), "—" if jv.goal is None else str(jv.goal),
+                str(jv.pos_min), str(jv.pos_max), str(jv.pos_max - jv.pos_min),
                 str(s.speed), f"{s.load / 10:.1f}",
                 Text(f"{v:.1f}", style="green" if lo_v <= v <= hi_v else "red"),
                 Text(f"{temp:g}", style="red" if temp >= TEMP_HOT_C else "yellow" if temp >= TEMP_WARN_C else ""),

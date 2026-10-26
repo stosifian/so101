@@ -1,6 +1,7 @@
 """Rerun live plots: a Hub consumer that batches samples into Rerun time series.
 
-Entity layout is /<arm>/<field>/<joint>, so each plot shows all joints of one quantity.
+Entity layout is /<arm>/<field>/<joint>, so each plot shows all joints of one quantity. Commanded
+goals (SafeArm runs) go to /<arm>/position/<joint>/goal, drawn in the same position plot.
 The x axis is the `monotonic` timeline: seconds since the run's started_monotonic_ns, the same
 clock as the parquet t_start_ns. Values are converted to display units here (%, V, mA); the
 parquet log stays in raw register units. V/°C are plotted raw, glitches included (diagnostic view).
@@ -69,6 +70,10 @@ class RerunView:
         for sample in batch:
             snap = sample.snapshot
             t = snap.t_start_ns - self.t0_ns
+            for joint, goal in (sample.goals or {}).items():
+                times, values = series.setdefault(f"{sample.arm}/position/{joint}/goal", ([], []))
+                times.append(t)
+                values.append(float(goal))
             for joint, state in snap.joints.items():
                 if state is None:
                     continue
