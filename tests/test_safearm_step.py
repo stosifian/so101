@@ -311,3 +311,26 @@ def test_set_speed_refused_in_shadow_mode():
         with pytest.raises(SafetyError, match="shadow"):
             arm.set_speed("shoulder_pan", 50)
     assert b.write_log == []
+
+
+def test_real_motion_temperature_spikes_never_trip():
+    """Step 6 sweeps: single-sample spikes up to 103 degC on the moving joint (motor-drive noise)."""
+    s = SafetyConfig.from_arm_config(CFG)
+    rows = pq.read_table(FIX / "telemetry_step6_sweeps_temp_spikes.parquet").to_pylist()
+    assert max(r["temperature_c"] for r in rows) >= 100  # the fixture really contains the big spikes
+    for run in sorted({r["run"] for r in rows}):
+        by_seq: dict[int, dict] = {}
+        for r in rows:
+            if r["run"] == run:
+                by_seq.setdefault(r["seq"], {})[r["joint"]] = r
+        checker = TripChecker(s)
+        for seq in sorted(by_seq):
+            js = by_seq[seq]
+            t = next(iter(js.values()))["t_start_ns"]
+            states = {j: JointState(r["position"], 0, r["load"], r["voltage_dv"], r["temperature_c"], r["status"], 0, 0)
+                      for j, r in js.items() if r["position"] is not None}  # fmt: skip
+            assert checker.feed(ArmSnapshot(t, t, states)) is None, f"false trip in {run} at seq {seq}"
+
+
+def test_wrist_roll_limit_is_the_rest_pose_contact_limit():
+    assert SafetyConfig.from_arm_config(CFG).limits["wrist_roll"] == (341, 2550)

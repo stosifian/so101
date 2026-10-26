@@ -20,7 +20,10 @@ limits_ticks:        # [min, max]      swept range
   shoulder_lift: [1053, 3158]    # 1003..3208
   elbow_flex:    [765, 2878]     # 715..2928
   wrist_flex:    [996, 2975]     # 946..3025
-  wrist_roll:    [341, 3438]     # 291..3488
+  wrist_roll:    [341, 2550]     # 291..3488 swept. Max lowered from 3438 on 2026-10-26 (user-approved):
+                                 # IN REST POSE (elbow 2927, wrist_flex 2853) the gripper base touches the
+                                 # shoulder at ~2645 (run 20261026-160843_sweep_follower). Rest-pose limit
+                                 # applied in every pose until FK collision checking (steps 8-9) can relax it.
   gripper:       [2082, 3447]    # 2032..3497
 # SafeArm settings (step 4, approved 2026-10-26). Conservative; relax with step 6 data.
 # Voltage trip uses expected_voltage_v above.

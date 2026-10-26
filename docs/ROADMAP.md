@@ -12,8 +12,8 @@
 | 5 | First powered move, staged: 5a shadow mode **(passed 2026-10-26, run 20261026-142826_shadow_follower)** (torque off, no writes) → 5b torque-on hold **(passed, runs 20261026-144830 + push test 20261026-145026)** → 5c one joint, small, slow. Verify `Moving` semantics, tracking, overshoot, jitter (P 32 vs 16); compare with SimBus. **Parking:** joints end at their soft limit; at torque-off the elbow settles the last ~4° (2878 → 2927) onto its rest stop, so keep a hand on it | done 2026-10-26 (5c run 20261026-145837_move_follower) |
 | 6 | Per-joint sweeps with logging | |
 | 7 | Home calibration (own zero offsets, no EEPROM) | |
-| 8 | FK from URDF (parameterized) | |
-| 9 | IK (DLS, joint-limit aware) + Cartesian demo | |
+| 8 | FK from URDF (parameterized). **Plus a collision model:** link shapes from the URDF + table plane + base; distance queries via an existing library (pinocchio + coal/hpp-fcl, since LeRobot has no collision checking). Regression case: rest pose with wrist_roll ≈ 2650 must be flagged (gripper vs shoulder, step 6) | |
+| 9 | IK (DLS, joint-limit aware) + Cartesian demo. **Collision checks in the loop:** every plan validated before torque-on; SafeArm checks each goal and freezes on predicted contact. Then relax the rest-pose wrist_roll limit (2550) where the pose allows | |
 | 10 | 15-min endurance/thermal loop + gripper squeeze | |
 | 11 | Phase 1 acceptance write-up, go/no-go | |
 
