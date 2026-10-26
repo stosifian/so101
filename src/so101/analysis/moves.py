@@ -16,9 +16,10 @@ def analyse(rows: list[dict], joint: str, min_hold_samples: int = 30) -> dict:
     goal repeats every other cycle). Every hold after the first is a stop at a new goal: in stream
     mode it follows a ramp, in servo mode the goal stepped there and the servo is still travelling.
 
-    Stick-slip: among consecutive samples where the joint is > STICK_TOL from its goal (so it should
-    be moving, not just sitting at its steady-state error), the fraction where the position did not
-    change, and the longest such stall."""
+    Stick-slip: among consecutive samples inside ramps (holds excluded) where the joint is > STICK_TOL
+    from its goal, the fraction where the position did not change, and the longest such stall.
+    Holds are excluded because a joint can sit > STICK_TOL short of a held goal while blocked (step 6:
+    wrist_roll held 5-21 ticks short of 2664 with the gripper base touching the shoulder)."""
     js = sorted((r for r in rows if r["joint"] == joint and r["goal"] is not None and r["position"] is not None),
                 key=lambda r: r["seq"])  # fmt: skip
     runs: list[list[dict]] = []
@@ -52,7 +53,8 @@ def analyse(rows: list[dict], joint: str, min_hold_samples: int = 30) -> dict:
                       "tail_load_median_pct": median(r["load"] for r in tail) / 10,
                       "hold_s": (run_[-1]["t_start_ns"] - t_stop) / 1e9})  # fmt: skip
     err = [abs(r["goal"] - r["position"]) for r in ramps]
-    should_move = [(a, b) for a, b in zip(js, js[1:]) if abs(b["goal"] - a["position"]) > STICK_TOL]
+    in_ramp = {r["seq"] for r in ramps}
+    should_move = [(a, b) for a, b in zip(js, js[1:]) if b["seq"] in in_ramp and abs(b["goal"] - a["position"]) > STICK_TOL]
     stuck_flags = [b["position"] == a["position"] for a, b in should_move]
     longest = cur = 0
     for (a, b), stuck in zip(should_move, stuck_flags):

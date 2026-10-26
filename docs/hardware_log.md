@@ -48,6 +48,10 @@ Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − 
 | Joint | Run | Profile / travel | err ↑ | err ↓ | Hysteresis | Holding load | Jitter | Stuck while moving | Notes |
 |-------|-----|------------------|-------|-------|------------|--------------|--------|--------------------|-------|
 | shoulder_pan | 20261026-160702_sweep_follower | generic, 1578–2795 (107°) | −1…−2 | +2…+3 | 3–5 ticks (0.26–0.44°), uniform across range | ±2.4 % (friction only) | 0 | 5 % | no trips, lag 20 ticks |
+| wrist_roll | 20261026-160843_sweep_follower | generic, 1115–2664 (136°) | −1…−2 | +1…+3 | 2–5 ticks | ±2.4 % | 0–1 | 5 % | **gripper base touched the shoulder near 2645–2664 (arm in rest pose)**; held 5–21 ticks short at 5–7.6 % load; no trip |
+
+## Collisions / contact
+- **wrist_roll vs shoulder (step 6, run 20261026-160843_sweep_follower):** with the arm in rest pose (elbow 2927, wrist_flex 2853), rolling the wrist up to ~2645–2664 brings the gripper base against the shoulder (seen by the user). Load during the approach (~6.4 %) looked the same as normal 150 ticks/s motion, so **gentle contact is not detectable from load at these speeds; it has to be prevented by limits or geometry.** Pose-dependent: the per-joint hand sweep could not find it.
 
 ## Telemetry quirks
 - **V/°C ADC glitches on IDs 4–6 (both arms):** ~0.2–1.6 % of samples read low voltage / high temperature for a single sample. The value really is in the servo register (block and single-register reads agree), so it's servo-side. Debounce any trip on V/°C. Positions have shown no spikes.
