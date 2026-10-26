@@ -30,6 +30,7 @@ SCHEMA = pa.schema([
     ("moving", pa.int8()),
     ("current", pa.int32()),  # 6.5 mA units
     ("error", pa.string()),  # BusError text when the read failed (other columns null)
+    ("goal", pa.int32()),  # Goal_Position commanded this cycle (SafeArm runs), else null
 ])  # fmt: skip
 STATE_FIELDS = ["position", "speed", "load", "voltage_dv", "temperature_c", "status", "moving", "current"]
 
@@ -39,7 +40,8 @@ def sample_rows(sample: Sample) -> list[dict]:
     rows = []
     for joint, state in snap.joints.items():
         row = {"arm": sample.arm, "seq": sample.seq, "t_start_ns": snap.t_start_ns, "t_end_ns": snap.t_end_ns,
-               "joint": joint, "error": snap.errors.get(joint)}  # fmt: skip
+               "joint": joint, "error": snap.errors.get(joint),
+               "goal": sample.goals.get(joint) if sample.goals else None}  # fmt: skip
         for f in STATE_FIELDS:
             row[f] = None if state is None else getattr(state, f)
         rows.append(row)

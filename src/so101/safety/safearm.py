@@ -1,11 +1,18 @@
 """SafeArm: the only way torque gets enabled or a goal gets written (CLAUDE.md hard rule).
 
-Step 4b: ownership, the torque-enable sequence and torque-off. Goal commands, clamps and trips
-come in 4c.
+One control cycle is `step(goals)`: snapshot -> trip checks -> clamp goals -> write -> publish.
+SafeArm owns the follower bus for the whole session (no poller runs), so every read and write
+happens in this one thread in a fixed order. The caller sets the loop rate.
+
+Shadow mode (`shadow=True`, step 5a): the full loop runs on the real arm with torque off and the
+write path disabled. Goals are validated and logged, trips are detected and raised, nothing is
+ever written (not even torque-off).
 
 Patterns copied from LeRobot (huggingface/lerobot @ 45cca1a, 2026-10-26):
 - `SerialMotorsBus.disconnect(disable_torque=True)` (src/lerobot/motors/motors_bus.py): torque off
   on every motor when the arm is released, even after an error. Same here in __exit__.
+- `ensure_safe_goal_position` (src/lerobot/robots/utils.py): clamp each goal to present +/-
+  max_relative_target. Same here, but always on (LeRobot's default is None = off).
 What we change and why:
 - LeRobot's `enable_torque` sets Torque_Enable=1 without syncing Goal_Position in Python. Our servos
   power up with Goal_Position=0 and Goal_Speed/Acceleration=0 (= unlimited), so that would lunge.
@@ -17,12 +24,15 @@ What we change and why:
 
 import enum
 import time
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import asdict, dataclass, field
 
 from so101.config import ArmConfig
-from so101.hw.arm import Arm
+from so101.hw.arm import Arm, ArmSnapshot
 from so101.hw.bus import BusError, ServoBus, read
 from so101.safety.config import SafetyConfig
+from so101.safety.trips import Trip, TripChecker
+from so101.telemetry.hub import Hub, Sample
 
 
 class State(enum.Enum):
@@ -36,12 +46,26 @@ class SafetyError(RuntimeError):
     pass
 
 
+class SafetyTrip(SafetyError):
+    """A safety check failed. Torque was turned off (unless shadow) before this was raised."""
+
+    def __init__(self, trip: Trip):
+        super().__init__(f"TRIP {trip.reason} on {trip.joint or 'arm'}: {trip.value} ({trip.detail})")
+        self.trip = trip
+
+
 @dataclass(frozen=True)
 class SafetyEvent:
     t_ns: int  # monotonic
     kind: str  # enable_ok | outside_limits | enable_failed | disable_failed | trip | ...
     joint: str | None
     detail: str
+
+
+@dataclass(frozen=True)
+class StepResult:
+    snapshot: ArmSnapshot
+    commanded: dict[str, int]  # goals actually written (or, in shadow mode, that would have been)
 
 
 @dataclass
@@ -53,19 +77,28 @@ class EnableReport:
 class SafeArm:
     OWNER = "safearm"
 
-    def __init__(self, bus: ServoBus, cfg: ArmConfig, safety: SafetyConfig | None = None):
-        self.bus, self.cfg = bus, cfg
+    def __init__(self, bus: ServoBus, cfg: ArmConfig, safety: SafetyConfig | None = None,
+                 hub: Hub | None = None, shadow: bool = False):  # fmt: skip
+        self.bus, self.cfg, self.hub, self.shadow = bus, cfg, hub, shadow
         self.safety = safety or SafetyConfig.from_arm_config(cfg)
         self.arm = Arm(bus, cfg.joints)
         self.state = State.DISABLED
         self.events: list[SafetyEvent] = []
+        self.clamps: Counter = Counter()  # (joint, max_step | limit | no_present) -> count
+        self.trips = TripChecker(self.safety)
+        self.seq = 0
         self._entered = False
+        self._last_torque_check_ns: int | None = None
+        self._servo_errors_seen = 0
 
     # --- lifecycle -------------------------------------------------------------------------
 
     def __enter__(self) -> "SafeArm":
         self.bus.claim(self.OWNER)  # raises if a poller (or anything else) owns the bus
         self._entered = True
+        self._servo_errors_seen = sum(
+            n for (_, flag), n in self.bus.stats.servo_errors.items() if flag not in ("voltage", "overheat")
+        )
         try:
             self._preflight()
         except BaseException:
@@ -99,6 +132,8 @@ class SafeArm:
         self.events.append(SafetyEvent(time.monotonic_ns(), kind, joint, detail))
 
     def _write(self, sid: int, name: str, value: int) -> None:
+        if self.shadow:
+            raise SafetyError(f"shadow mode: refusing to write {name}={value} to id {sid}")
         self.bus.write(self.OWNER, sid, name, value)
 
     # --- torque on -------------------------------------------------------------------------
@@ -109,8 +144,11 @@ class SafeArm:
         Torque_Enable=1, read it back. Any failure turns torque off everywhere and raises."""
         if not self._entered:
             raise SafetyError("use SafeArm as a context manager (with SafeArm(...) as arm:)")
+        if self.shadow:
+            raise SafetyError("shadow mode: enable() is not allowed")
         if self.state is not State.DISABLED:
             raise SafetyError(f"enable() needs state DISABLED, not {self.state.value}")
+        self._last_torque_check_ns = None
         self.state = State.ENABLING
         report = EnableReport()
         try:
@@ -152,6 +190,8 @@ class SafeArm:
     def disable(self) -> list[str]:
         """Torque off on every joint. Tries all joints even if some fail; never raises.
         Returns the joints that could not be confirmed off. Note: the arm falls under gravity."""
+        if self.shadow:
+            return []  # torque was verified off at preflight and nothing can turn it on
         failed = []
         for joint, sid in self.cfg.joints.items():
             try:
@@ -171,3 +211,95 @@ class SafeArm:
         if self.state is State.TRIPPED:
             self._event("reset", None, "trip acknowledged")
             self.state = State.DISABLED
+
+    # --- control cycle ---------------------------------------------------------------------
+
+    def step(self, goals: dict[str, float] | None = None) -> StepResult:
+        """One cycle: snapshot, trip checks, clamp + write goals, publish. Raises SafetyTrip.
+
+        Without goals it only monitors (allowed in any state). Goals need torque on (HOLDING),
+        or shadow mode. Joints not in `goals` keep their current Goal_Position."""
+        if not self._entered:
+            raise SafetyError("use SafeArm as a context manager (with SafeArm(...) as arm:)")
+        if goals and not (self.state is State.HOLDING or self.shadow):
+            raise SafetyError(f"goals need state HOLDING (enable() first), not {self.state.value}")
+        snap = self.arm.snapshot()
+        trip = self.trips.feed(snap) or self._bus_checks(snap)
+        commanded: dict[str, int] = {}
+        if trip is None and goals:
+            commanded = self.clamp_goals(goals, snap)
+            for joint, g in commanded.items():
+                if not self.shadow:
+                    self._write(self.cfg.joints[joint], "Goal_Position", g)
+        if self.hub is not None:  # publish before tripping, so the log holds the tripping sample
+            self.hub.publish(Sample(self.cfg.name, self.seq, snap, commanded or None))
+        self.seq += 1
+        if trip is not None:
+            self._trip(trip)
+        return StepResult(snap, commanded)
+
+    def clamp_goals(self, goals: dict[str, float], snap: ArmSnapshot) -> dict[str, int]:
+        """present +/- max_step, then the software limits. A joint outside its limits may only
+        move back toward them (never further out, never a clamp-jump to the limit)."""
+        s, out = self.safety, {}
+        for joint, goal in goals.items():
+            if joint not in self.cfg.joints:
+                raise SafetyError(f"unknown joint {joint!r}")
+            st = snap.joints[joint]
+            if st is None:  # no fresh position: can't validate, so don't move this joint
+                self.clamps[(joint, "no_present")] += 1
+                continue
+            p, g = st.position, int(round(goal))
+            stepped = min(max(g, p - s.max_step), p + s.max_step)
+            if stepped != g:
+                self.clamps[(joint, "max_step")] += 1
+            lo, hi = s.limits[joint]
+            if p > hi:
+                final = min(max(stepped, lo), p)
+            elif p < lo:
+                final = min(max(stepped, p), hi)
+            else:
+                final = min(max(stepped, lo), hi)
+            if final != stepped:
+                self.clamps[(joint, "limit")] += 1
+            out[joint] = final
+        return out
+
+    def _bus_checks(self, snap: ArmSnapshot) -> Trip | None:
+        """Checks that need the bus: packet error flags, and Torque_Enable still on."""
+        t = snap.t_start_ns
+        # Packet error byte: voltage/overheat bits come from the glitchy ADC and are covered by the
+        # debounced Status/V/degC checks in TripChecker; overload, overcurrent and angle trip at once.
+        serious = sum(n for (_, flag), n in self.bus.stats.servo_errors.items() if flag not in ("voltage", "overheat"))
+        if serious > self._servo_errors_seen:
+            flags = {f"{sid}:{flag}": n for (sid, flag), n in self.bus.stats.servo_errors.items()}
+            self._servo_errors_seen = serious
+            return Trip(t, None, "servo_error", serious, f"packet error flags {flags}")
+        if self.state is State.HOLDING and (
+            self._last_torque_check_ns is None or (t - self._last_torque_check_ns) / 1e9 >= self.safety.torque_check_s
+        ):
+            self._last_torque_check_ns = t
+            for joint, sid in self.cfg.joints.items():
+                try:
+                    if read(self.bus, sid, "Torque_Enable") != 1:
+                        return Trip(t, joint, "torque_off", 0, "Torque_Enable found cleared while holding")
+                except BusError:
+                    pass  # a failed read is counted by the comm check on the next snapshots
+        return None
+
+    def _trip(self, trip: Trip) -> None:
+        self._event("trip", trip.joint, f"{trip.reason}={trip.value}: {trip.detail}")
+        self.disable()
+        self.state = State.TRIPPED
+        raise SafetyTrip(trip)
+
+    def report(self) -> dict:
+        """JSON-able summary for the run directory (safety_events.json)."""
+        return {
+            "state": self.state.value,
+            "shadow": self.shadow,
+            "cycles": self.seq,
+            "events": [asdict(e) for e in self.events],
+            "clamps": {f"{j}:{kind}": n for (j, kind), n in self.clamps.items()},
+            "safety": asdict(self.safety),
+        }

@@ -14,8 +14,9 @@ from so101.hw.arm import ArmSnapshot
 @dataclass(frozen=True)
 class Sample:
     arm: str
-    seq: int  # per-poller counter; gaps never happen at the source, so gaps downstream = drops
+    seq: int  # per-producer counter; gaps never happen at the source, so gaps downstream = drops
     snapshot: ArmSnapshot
+    goals: dict[str, int] | None = None  # Goal_Position commanded this cycle (SafeArm), after clamps
 
 
 class Subscription:
