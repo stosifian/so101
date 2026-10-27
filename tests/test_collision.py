@@ -41,7 +41,7 @@ NORMAL = {  # no contact
 
 
 def test_config_values():
-    assert (SAFETY.collision_table_margin_m, SAFETY.collision_self_margin_m) == (0.0, 0.005)
+    assert (SAFETY.collision_table_margin_m, SAFETY.collision_self_margin_m) == (0.003, 0.005)
     assert SAFETY.collision_include_camera_mount
 
 
@@ -52,9 +52,23 @@ def test_real_table_contacts_are_flagged(name):
 
 
 @pytest.mark.parametrize("name", list(NORMAL))
-def test_normal_poses_are_clear_of_the_table(name):
+def test_normal_poses_are_allowed(name):
+    """Every normal pose is either clear of the 3 mm margin, or (rest yesterday, +2.3 mm) allowed as a start
+    pose by the margin rule: inside the margin is fine if not getting closer."""
     r = CM.check_ticks(NORMAL[name])
-    assert r.ok, (name, r.violations)
+    assert CM.table_violations(r, ref=r) == [], name
+    assert r.min_table > 0  # never penetrating
+
+
+def test_margin_rule_allows_moving_away_but_not_closer():
+    rest = CM.check_ticks(REST_YESTERDAY)
+    assert rest.min_table < 0.003  # inside the margin at rest
+    # near rest, raising lift (+) swings the folded gripper DOWN toward the table (as in the real contacts)
+    away = CM.check_ticks({**REST_YESTERDAY, "elbow_flex": REST_YESTERDAY["elbow_flex"] - 25})
+    closer = CM.check_ticks({**REST_YESTERDAY, "shoulder_lift": REST_YESTERDAY["shoulder_lift"] + 25})
+    assert away.min_table > rest.min_table and CM.table_violations(away, ref=rest) == []
+    assert closer.min_table < rest.min_table and CM.table_violations(closer, ref=rest) != []
+    assert CM.table_violations(closer, ref=None) != []  # no reference: plain margin
 
 
 def test_known_miss_gripper_vs_shoulder_in_rest_pose():

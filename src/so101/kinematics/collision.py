@@ -109,6 +109,23 @@ class CollisionModel:
                           for (a, b), d in r.self_pairs.items() if d < self.self_margin]  # fmt: skip
         return r
 
+    def table_violations(self, report: CollisionReport, ref: CollisionReport | None, tol_m: float = 0.0005) -> list[str]:
+        """Table violations of `report`, applying the margin rule against a reference (the current/start pose):
+        a body already inside the margin at `ref` may stay or move away, but not get closer. Penetration
+        (distance < 0) that gets deeper is always a violation."""
+        if self.table_margin is None:
+            return []
+        out = []
+        for b, d in report.table.items():
+            if d >= self.table_margin:
+                continue
+            r = ref.table.get(b, float("inf")) if ref is not None else float("inf")
+            if r < self.table_margin and d >= r - tol_m:
+                continue  # already inside the margin and not getting closer
+            out.append(f"{b} {d * 1000:+.1f} mm to table (margin {self.table_margin * 1000:.0f} mm"
+                       + (f", was {r * 1000:+.1f} mm" if r != float("inf") else "") + ")")
+        return out
+
     def check_ticks(self, ticks: dict[str, float]) -> CollisionReport:
         return self.check(self.mapping.to_q(ticks))
 

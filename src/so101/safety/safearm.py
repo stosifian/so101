@@ -83,8 +83,16 @@ class SafeArm:
     OWNER = "safearm"
 
     def __init__(self, bus: ServoBus, cfg: ArmConfig, safety: SafetyConfig | None = None,
-                 hub: Hub | None = None, shadow: bool = False):  # fmt: skip
+                 hub: Hub | None = None, shadow: bool = False, collision=None, mapping=None):  # fmt: skip
+        """collision + mapping (optional, step 9c): before goals are written, the goal pose is checked against
+        the table (kinematics.collision, with the inside-margin rule vs the measured pose); a predicted
+        contact freezes the arm like contact detection. Self-collision is logged (warn-only)."""
         self.bus, self.cfg, self.hub, self.shadow = bus, cfg, hub, shadow
+        if (collision is None) != (mapping is None):
+            raise SafetyError("collision checking needs both a CollisionModel and a Mapping")
+        self.collision, self.mapping = collision, mapping
+        self.collision_hit: str | None = None
+        self._self_warned: set[str] = set()
         self.safety = safety or SafetyConfig.from_arm_config(cfg)
         self.arm = Arm(bus, cfg.joints)
         self.state = State.DISABLED
@@ -161,6 +169,7 @@ class SafeArm:
             raise SafetyError(f"enable() needs state DISABLED, not {self.state.value}")
         self._last_torque_check_ns = None
         self.frozen = False
+        self.collision_hit = None
         self.state = State.ENABLING
         report = EnableReport()
         try:
@@ -282,25 +291,53 @@ class SafeArm:
         if trip is None and self.contact is not None and self.state is State.HOLDING and not self.frozen and not self.shadow:
             hit = self.contact.check(snap)
         if hit is not None:  # freeze in place: goal := present everywhere, torque stays on
-            commanded = self.clamp_goals({j: s.position for j, s in snap.joints.items() if s is not None}, snap)
-            for joint, g in commanded.items():
-                self._write(self.cfg.joints[joint], "Goal_Position", g)
-            self.contact.update(commanded, snap.t_start_ns)
-            self.frozen, self.contact_hit = True, hit
+            commanded = self._freeze_in_place(snap)
+            self.contact_hit = hit
             self._event("contact", hit.joint, f"{hit.detail} -> FROZEN (goal := present, torque on)")
         elif trip is None and goals:
             commanded = self.clamp_goals(goals, snap)
-            for joint, g in commanded.items():
-                if not self.shadow:
-                    self._write(self.cfg.joints[joint], "Goal_Position", g)
-            if self.contact is not None and not self.shadow:
-                self.contact.update(commanded, snap.t_start_ns)
+            blocked = self._predicted_collision(commanded, snap) if (self.collision and not self.shadow) else None
+            if blocked:
+                commanded = self._freeze_in_place(snap)
+                self.collision_hit = blocked
+                self._event("collision_predicted", None, f"{blocked} -> FROZEN (goal not written; goal := present)")
+            else:
+                for joint, g in commanded.items():
+                    if not self.shadow:
+                        self._write(self.cfg.joints[joint], "Goal_Position", g)
+                if self.contact is not None and not self.shadow:
+                    self.contact.update(commanded, snap.t_start_ns)
         if self.hub is not None:  # publish before tripping, so the log holds the tripping sample
             self.hub.publish(Sample(self.cfg.name, self.seq, snap, commanded or None))
         self.seq += 1
         if trip is not None:
             self._trip(trip)
         return StepResult(snap, commanded)
+
+    def _freeze_in_place(self, snap: ArmSnapshot) -> dict[str, int]:
+        commanded = self.clamp_goals({j: s.position for j, s in snap.joints.items() if s is not None}, snap)
+        for joint, g in commanded.items():
+            self._write(self.cfg.joints[joint], "Goal_Position", g)
+        if self.contact is not None:
+            self.contact.update(commanded, snap.t_start_ns)
+        self.frozen = True
+        return commanded
+
+    def _predicted_collision(self, commanded: dict[str, int], snap: ArmSnapshot) -> str | None:
+        """Table check of the goal pose vs the measured pose (margin rule). Returns the violation text or None."""
+        measured = {j: s.position for j, s in snap.joints.items() if s is not None}
+        if len(measured) < len(self.cfg.joints):
+            return None  # no complete reading: the comm check handles it; don't guess geometry
+        goal_ticks = {**measured, **self.last_goals, **commanded}
+        ref = self.collision.check_ticks(measured)
+        rep = self.collision.check_ticks(goal_ticks)
+        for w in rep.warnings:  # self-collision: warn-only, once per pair per session
+            pair = w.split(" ")[0] + w.split(" ")[2]
+            if pair not in self._self_warned:
+                self._self_warned.add(pair)
+                self._event("self_collision_warning", None, w)
+        v = self.collision.table_violations(rep, ref)
+        return v[0] if v else None
 
     def clamp_goals(self, goals: dict[str, float], snap: ArmSnapshot) -> dict[str, int]:
         """present +/- max_step, then the software limits. A joint outside its limits may only
