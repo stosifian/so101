@@ -15,7 +15,7 @@
 | 8 | Parameterized FK + MuJoCo collision model + table plane (base underside) validated by touches | done 2026-10-27 |
 | 9 | IK + collision-checked motion + Cartesian demo (wrist_roll limit kept; wide sweeps deferred) | done 2026-10-27 |
 | 10 | Endurance/thermal loop, gripper squeeze (current scale), manifest | done 2026-10-27 |
-| 11 | Acceptance write-up, go/no-go | write-up done 2026-10-27 (recommends GO); decision pending |
+| 11 | Acceptance write-up, go/no-go | done 2026-10-27: GO (user); teleop check dropped |
 
 ## Phase 2 — camera metrology (spec §5–§9)
 
