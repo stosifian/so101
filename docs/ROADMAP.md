@@ -13,7 +13,7 @@
 | 6 | Per-joint sweeps: 6a contact detection → 6b sweeps from a clear pose → 6c `wait_until_settled` → 6d timing | done 2026-10-27 |
 | 7 | Calibration: ticks → MuJoCo Menagerie model mapping | done 2026-10-27 (by eye) |
 | 8 | Parameterized FK + MuJoCo collision model + table plane (base underside) validated by touches | done 2026-10-27 |
-| 9 | IK + collision-checked motion; relax wrist_roll limit; wide sweeps; Cartesian demo | planned |
+| 9 | IK + collision-checked motion + Cartesian demo (wrist_roll limit kept; wide sweeps deferred) | done 2026-10-27 |
 | 10 | Endurance/thermal loop, gripper squeeze (current scale), manifest | planned |
 | 11 | Acceptance write-up, go/no-go | planned |
 
@@ -45,6 +45,7 @@
 
 ## Phase 3 — chosen from Phase 2 results (spec §3)
 
+- **Deferred from Phase 1 step 9 (D16): wide lift/elbow sweeps** (lift past vertical where gravity flips, near-horizontal loads; elbow beyond 53°), now safe to run with `joint_sweep.py` once the collision model is wired into it (~10 lines). Input for the stiffness-compensation layer: the Cartesian demo's 8.5 mm off-line error was mostly gravity sag.
 - **Grasping near the table needs a grasp mode in the collision model** (user, 2026-10-27): per-body table margins / allowed contacts (fingertips may approach or touch the table during a grasp; wrist, forearm and camera mount keep a real margin), like MoveIt's allowed collision matrix. `so101.kinematics.collision` already reports distances per link. How close the fingertips can safely go depends on Phase 2's calibration accuracy (by-eye mapping error is measured at step 8c). Contact detection also needs the gripper exempt or separately thresholded while grasping (step 10).
 - `sensors/` takes a BMI270 IMU (reuse serial code from `~/Desktop/Python/imu-diff-sim`) or a wrist camera via the `Sensor` protocol.
 - A stiffness-model compensation layer would sit between `kinematics` and `motion` (corrected IK).
