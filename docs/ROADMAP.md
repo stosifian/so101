@@ -45,6 +45,7 @@
 
 ## Phase 3 — chosen from Phase 2 results (spec §3)
 
+- **Grasping near the table needs a grasp mode in the collision model** (user, 2026-10-27): per-body table margins / allowed contacts (fingertips may approach or touch the table during a grasp; wrist, forearm and camera mount keep a real margin), like MoveIt's allowed collision matrix. `so101.kinematics.collision` already reports distances per link. How close the fingertips can safely go depends on Phase 2's calibration accuracy (by-eye mapping error is measured at step 8c). Contact detection also needs the gripper exempt or separately thresholded while grasping (step 10).
 - `sensors/` takes a BMI270 IMU (reuse serial code from `~/Desktop/Python/imu-diff-sim`) or a wrist camera via the `Sensor` protocol.
 - A stiffness-model compensation layer would sit between `kinematics` and `motion` (corrected IK).
 - Policy/VLA route: an optional LeRobot adapter wraps `SafeArm`. The core deliberately doesn't depend on LeRobot normalization.
