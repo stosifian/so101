@@ -63,6 +63,8 @@ def main() -> None:
     ap.add_argument("--viz", action=argparse.BooleanOptionalAction, default=True,
                     help="live Rerun plots, saved as telemetry.rrd (default on; the viewer settles before torque-on)")
     ap.add_argument("--yes", action="store_true", help="don't wait for Enter after printing the plan")
+    ap.add_argument("--hold-at-end", action="store_true",
+                    help="after returning to the start pose, keep holding until Ctrl-C (for raised start poses)")
     ap.add_argument("--notes", default="")
     ap.add_argument("--sim", action="store_true", help="use SimBus instead of the arm")
     args = ap.parse_args()
@@ -109,7 +111,8 @@ def main() -> None:
         console.print("  [bold yellow]gravity joint: keep a hand under the arm (a trip or 2nd Ctrl-C drops it)")
     if not args.yes:
         try:
-            input("Press Enter to enable torque and start (Ctrl-C to abort, nothing has been written)… ")
+            input("If the arm isn't resting on its stops, HOLD it in this pose now. Press Enter to enable torque "
+                  "(it then holds the pose and you can let go); Ctrl-C aborts, nothing has been written… ")
         except KeyboardInterrupt:
             bus.close()
             sys.exit("\naborted before enabling")
@@ -132,6 +135,10 @@ def main() -> None:
                 result["enable"] = arm.enable()
                 marks["move_start_ns"] = time.monotonic_ns()
                 result["loop"] = control_loop(arm, args.rate, goal_fn, total, live.stop, freeze=live.freeze)
+                if args.hold_at_end and not live.stop.is_set() and not arm.frozen:
+                    result["holding_at_end"] = True  # status line asks for support; Ctrl-C ends it
+                    marks["hold_at_end_ns"] = time.monotonic_ns()
+                    control_loop(arm, args.rate, lambda t: None, float("inf"), live.stop)
                 marks["torque_off_ns"] = time.monotonic_ns()
                 result["disable_failed"] = arm.disable()
                 t_end = time.monotonic() + args.after_s
@@ -145,9 +152,16 @@ def main() -> None:
             marks.setdefault("torque_off_ns", time.monotonic_ns())
             result["error"] = e
 
-    live.status_fn = lambda: (f"FROZEN by contact detection ({a.contact_hit.joint}, {a.contact_hit.role}, "
-                              f"{abs(a.contact_hit.error)} ticks): support the arm, then Ctrl-C = torque off"
-                              if (a := result.get("arm")) is not None and a.contact_hit else None)  # fmt: skip
+    def status() -> str | None:
+        a = result.get("arm")
+        if a is not None and a.contact_hit:
+            return (f"FROZEN by contact detection ({a.contact_hit.joint}, {a.contact_hit.role}, "
+                    f"{abs(a.contact_hit.error)} ticks): support the arm, then Ctrl-C = torque off")
+        if result.get("holding_at_end"):
+            return "HOLDING AT END (sweep done): support the arm, then Ctrl-C = torque off"
+        return None
+
+    live.status_fn = status
     th = threading.Thread(target=worker, name="safearm-sweep")
     th.start()
     live.footer = [f"TORQUE ON: {profile} sweep of {args.joint}. Ctrl-C = freeze, again = torque off."]
@@ -182,7 +196,8 @@ def main() -> None:
         console.print(f"[yellow]FROZEN by contact detection: {arm.contact_hit.detail}; held, then torque off"
                       if arm and arm.contact_hit else "[yellow]FROZEN by Ctrl-C, held, then torque off; no trips")
     else:
-        console.print("[green]sweep completed, torque off, no trips")
+        console.print("[green]sweep completed" + (", held at end" if result.get("holding_at_end") else "")
+                      + ", torque off, no trips")
     if loop:
         console.print(f"loop: {loop.cycles} cycles in {loop.duration_s:.1f} s, overruns {loop.overruns}, skipped {loop.skipped_slots}")
     if arm:
