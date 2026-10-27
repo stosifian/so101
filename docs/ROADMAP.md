@@ -10,7 +10,7 @@
 | 3 | Torque-off telemetry + limit sweeps | done 2026-10-26 |
 | 4 | SafeArm + mock/sim tests | done 2026-10-26 |
 | 5 | First powered move (5a shadow → 5b hold → 5c move → 5d stick-slip) | done 2026-10-26 |
-| 6 | Per-joint sweeps: 6a contact detection → 6b sweeps from a clear pose → 6c `wait_until_settled` → 6d timing | in progress |
+| 6 | Per-joint sweeps: 6a contact detection → 6b sweeps from a clear pose → 6c `wait_until_settled` → 6d timing | done 2026-10-27 |
 | 7 | Calibration: ticks → MuJoCo Menagerie model mapping | planned |
 | 8 | Parameterized FK + MuJoCo collision model + measured table plane | planned |
 | 9 | IK + collision-checked motion; relax wrist_roll limit; wide sweeps; Cartesian demo | planned |

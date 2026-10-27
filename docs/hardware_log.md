@@ -61,6 +61,13 @@ Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − 
 |-------|-----|---------|----------------|--------------------------|------------|-----------------------------|
 | shoulder_pan | 20261027-093309_settle_follower | 2057, 2207, 2357 | ≈ 0.21 s (one 0.42 s) | −1…−3 / +1…+3 | 3–6 ticks | **0 ticks in 5 of 6, 2 in one** |
 
+## Loop timing (step 6d, 30 s holds, Rerun off)
+| | Overruns / skipped | Period p50 / p99 / max | Read p99 / max |
+|---|---|---|---|
+| no TUI | 4 / 0 | 10.0 / 11.6 / 13 ms | 5.7 / 10 ms |
+| TUI (10 Hz redraw) | 21 / 1 | 10.0 / 14.0 / 28 ms | 8.3 / 17 ms |
+The TUI redraw competes with the control thread in the same process (Python's global lock). Use no TUI for timing-sensitive runs.
+
 ## Collisions / contact
 - **wrist_roll vs shoulder (step 6, run 20261026-160843_sweep_follower):** with the arm in rest pose (elbow 2927, wrist_flex 2853), rolling the wrist up to ~2645–2664 brings the gripper base against the shoulder (seen by the user). Load during the approach (~6.4 %) looked the same as normal 150 ticks/s motion, so **gentle contact is not detectable from load at these speeds; it has to be prevented by limits or geometry.** Pose-dependent: the per-joint hand sweep could not find it. **Action: wrist_roll max lowered 3438 → 2550 in config (≈8° before contact). That's a rest-pose limit applied in every pose for now; FK collision checking (steps 8–9) should relax it where the pose allows.**
 
