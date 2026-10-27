@@ -70,6 +70,7 @@ class TripChecker:
             if self._sustained(joint, "voltage", not lo_v <= st.voltage_v <= hi_v, t, s.debounce_s):
                 return Trip(t, joint, "voltage", st.voltage_v,
                             f"outside [{lo_v}, {hi_v}] V for {s.debounce_s} s")  # fmt: skip
-            if self._sustained(joint, "load", abs(st.load) / 10 > s.load_trip_pct, t, s.load_trip_s):
-                return Trip(t, joint, "load", st.load / 10, f"|load| > {s.load_trip_pct} % for {s.load_trip_s} s")
+            limit = s.load_trip_overrides.get(joint, s.load_trip_pct)
+            if self._sustained(joint, "load", abs(st.load) / 10 > limit, t, s.load_trip_s):
+                return Trip(t, joint, "load", st.load / 10, f"|load| > {limit} % for {s.load_trip_s} s")
         return None

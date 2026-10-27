@@ -93,6 +93,8 @@ class SafeArm:
         self.collision, self.mapping = collision, mapping
         self.collision_hit: str | None = None
         self._self_warned: set[str] = set()
+        self._torque_limited: set[str] = set()  # joints whose Torque_Limit was lowered (restored on exit)
+        self._contact_exempt: set[str] = set()  # applied to the ContactChecker at every enable()
         self.safety = safety or SafetyConfig.from_arm_config(cfg)
         self.arm = Arm(bus, cfg.joints)
         self.state = State.DISABLED
@@ -130,6 +132,12 @@ class SafeArm:
     def __exit__(self, *exc) -> None:
         try:
             self.disable()
+            for joint in sorted(self._torque_limited):  # SRAM survives until power-off: never leave a joint weak
+                try:
+                    self._write(self.cfg.joints[joint], "Torque_Limit", 1000)
+                    self._event("torque_limit", joint, "restored to 100 % on exit")
+                except BusError as e:
+                    self._event("torque_limit_restore_failed", joint, str(e))
         finally:
             self.bus.release(self.OWNER)
             self._entered = False
@@ -186,6 +194,7 @@ class SafeArm:
             raise SafetyError(f"enable failed, torque turned off: {e}") from e
         self.state = State.HOLDING
         self.contact = ContactChecker(self.safety, report.present, time.monotonic_ns())
+        self.contact.exempt = set(self._contact_exempt)
         self.contact_hit = None
         self._event("enable_ok", None, f"holding {report.present}")
         return report
@@ -253,6 +262,38 @@ class SafeArm:
         missing = sorted(set(self.cfg.joints) - set(snap_goals))
         self._event("freeze", None, f"goal := present {result.commanded}" + (f"; no reading for {missing}" if missing else ""))
         return result
+
+    # --- gripper handling (step 10a) ------------------------------------------------------------
+
+    def set_contact_exempt(self, joint: str, exempt: bool = True) -> None:
+        """Exclude a joint from contact detection (a gripper closing on an object stops short of its goal under
+        load: exactly a holding contact). Trips (incl. its load trip) stay active. Logged."""
+        if joint not in self.cfg.joints:
+            raise SafetyError(f"unknown joint {joint!r}")
+        (self._contact_exempt.add if exempt else self._contact_exempt.discard)(joint)
+        if self.contact is not None:
+            self.contact.exempt = set(self._contact_exempt)
+        self._event("contact_exempt", joint, "exempt from contact detection" if exempt else "contact detection restored")
+
+    # --- torque limit (step 10a) --------------------------------------------------------------
+
+    def set_torque_limit(self, joint: str, percent: float) -> None:
+        """Cap a joint's output torque (SRAM Torque_Limit, 0.1 % units), read back, logged. Restored to 100 %
+        when the session ends. Used to keep a gripper squeeze gentle."""
+        if not self._entered:
+            raise SafetyError("use SafeArm as a context manager (with SafeArm(...) as arm:)")
+        if joint not in self.cfg.joints:
+            raise SafetyError(f"unknown joint {joint!r}")
+        raw = int(round(percent * 10))
+        if not 1 <= raw <= 1000:
+            raise SafetyError(f"torque limit {percent} % outside 0.1..100 %")
+        sid = self.cfg.joints[joint]
+        self._write(sid, "Torque_Limit", raw)
+        if (got := read(self.bus, sid, "Torque_Limit")) != raw:
+            raise SafetyError(f"{joint}: Torque_Limit read back {got}, wrote {raw}")
+        if raw < 1000:
+            self._torque_limited.add(joint)
+        self._event("torque_limit", joint, f"{percent:g} %")
 
     # --- speed ---------------------------------------------------------------------------
 

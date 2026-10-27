@@ -24,6 +24,9 @@ WRITABLE: dict[str, range] = {
     "Goal_Position": range(0, 4096),  # ticks
     "Goal_Speed": range(1, 1 << 15),  # ticks/s, never 0
     "Acceleration": range(1, 255),  # 100 ticks/s^2, never 0
+    # 0.1 % of max output (SRAM; power-up value = Max_Torque_Limit = 1000). Step 10a, user-approved: caps the
+    # gripper during a squeeze (LeRobot caps it at 50 % too, but via the EEPROM Max_Torque_Limit). 0 refused.
+    "Torque_Limit": range(1, 1001),
 }
 
 

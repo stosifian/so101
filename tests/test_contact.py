@@ -200,3 +200,38 @@ def test_error_byte_reaches_the_snapshot():
     b.last_error[6] = 0x04
     s = Arm(b, IDS).snapshot()
     assert s.joints["gripper"].error_byte == 0x04 and s.joints["shoulder_pan"].error_byte == 0
+
+
+def test_exempt_joint_is_not_checked():
+    c = ContactChecker(SAFETY, {"gripper": 2172}, t_ns=0)
+    c.exempt = {"gripper"}
+    for t in (1.0, 1.5, 2.0):
+        assert c.check(snap(t, gripper=2300)) is None
+
+
+def test_gripper_squeeze_does_not_freeze_when_exempt():
+    b = MockBus.from_dump(FACTORY)
+    with SafeArm(b, CFG) as arm:
+        arm.set_contact_exempt("gripper")
+        arm.enable()
+        arm.step({"gripper": 2126 + 100})  # mock never moves: gripper stays 100 ticks short, like a squeeze
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 0.6:
+            arm.step()
+        assert not arm.frozen
+        assert any(e.kind == "contact_exempt" for e in arm.events)
+
+
+def test_load_trip_override_for_the_gripper():
+    from so101.safety import TripChecker
+
+    assert SAFETY.load_trip_overrides == {"gripper": 80.0}
+    tc = TripChecker(SAFETY)
+    st = lambda load: {"gripper": JointState(2200, 0, load, 119, 30, 0, 0, 0)}
+    for t in (0.0, 0.3, 0.6):  # 60 % on the gripper for 0.6 s: below its 80 % override
+        assert tc.feed(ArmSnapshot(int(t * 1e9), 0, st(600))) is None
+    tc2 = TripChecker(SAFETY)
+    trip = None
+    for t in (0.0, 0.3, 0.6):
+        trip = trip or tc2.feed(ArmSnapshot(int(t * 1e9), 0, st(850)))
+    assert trip and trip.reason == "load" and "80" in trip.detail

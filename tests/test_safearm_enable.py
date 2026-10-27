@@ -193,3 +193,15 @@ def test_disable_tries_every_joint_and_reports_failures():
         others = {j: v for j, v in torque(bus).items() if j != "wrist_flex"}
         assert all(v == 0 for v in others.values())  # the rest still went off
         assert any(e.kind == "disable_failed" for e in arm.events)
+
+
+def test_torque_limit_is_set_read_back_and_restored_on_exit():
+    bus = factory_bus()
+    with SafeArm(bus, CFG) as arm:
+        arm.enable()
+        arm.set_torque_limit("gripper", 50)
+        assert read(bus, IDS["gripper"], "Torque_Limit") == 500
+        with pytest.raises(SafetyError, match="outside"):
+            arm.set_torque_limit("gripper", 0)
+    assert read(bus, IDS["gripper"], "Torque_Limit") == 1000  # restored even though torque is off
+    assert any(e.kind == "torque_limit" and "restored" in e.detail for e in arm.events)

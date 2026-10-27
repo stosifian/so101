@@ -37,6 +37,7 @@ class ContactChecker:
         self.s = safety
         self.goal = dict(hold_positions)
         self.commanded: set[str] = set()
+        self.exempt: set[str] = set()  # joints not checked (e.g. the gripper while squeezing, step 10a)
         self.changed_ns: dict[str, int] = {j: t_ns - int(2 * safety.contact_window_s * 1e9) for j in hold_positions}
         self._since: dict[str, int] = {}  # joint -> t_ns the error first exceeded its threshold
 
@@ -53,7 +54,8 @@ class ContactChecker:
         """Call BEFORE writing this cycle's goals: compares against the goals the servos were chasing."""
         t = snap.t_start_ns
         for joint, st in snap.joints.items():
-            if st is None or joint not in self.goal:
+            if st is None or joint not in self.goal or joint in self.exempt:
+                self._since.pop(joint, None)
                 continue
             role = self.role(joint, t)
             limit = self.threshold(role)

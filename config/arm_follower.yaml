@@ -34,6 +34,8 @@ safety:
   temp_trip_c: 55              # firmware unloads at 70
   load_trip_pct: 50            # |Present_Load| above this ...
   load_trip_s: 0.5             # ... for this long
+  load_trip_pct_overrides:     # per-joint load trip (step 10a, approved): the gripper squeezes on purpose;
+    gripper: 80                # its Torque_Limit is capped at 50 % while squeezing, so 80 % = jammed at full torque
   debounce_s: 0.5              # temp/voltage must be out of range this long (ADC glitches, step 3)
   comm_fail_trip: 5            # consecutive snapshots with a failed servo
   torque_check_s: 0.5          # how often Torque_Enable is re-read while enabled

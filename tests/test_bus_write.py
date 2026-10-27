@@ -19,7 +19,7 @@ def test_only_sram_registers_are_writable():
 
 
 @pytest.mark.parametrize("name", ["Offset", "Min_Angle_Limit", "Max_Angle_Limit", "ID", "Mode", "Lock",
-                                  "P_Coefficient", "Torque_Limit", "Present_Position"])  # fmt: skip
+                                  "P_Coefficient", "Max_Torque_Limit", "Present_Position"])  # fmt: skip
 def test_everything_else_is_refused(name):
     with pytest.raises(BusError, match="refused"):
         check_write(name, 1)
@@ -92,3 +92,11 @@ def test_mock_from_factory_dump_has_the_real_power_up_state():
         assert read(bus, servo_id, "Lock") == 1
     assert read(bus, 3, "Present_Position") == 2927  # elbow at its stop, outside the soft limit
     assert read(bus, 1, "Offset") == -1835  # factory homing offset, decoded
+
+
+def test_torque_limit_is_writable_within_1_to_1000():
+    check_write("Torque_Limit", 1)
+    check_write("Torque_Limit", 1000)
+    for bad in (0, 1001):
+        with pytest.raises(BusError, match="refused"):
+            check_write("Torque_Limit", bad)

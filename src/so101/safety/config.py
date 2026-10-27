@@ -1,6 +1,6 @@
 """Safety settings for SafeArm, parsed and validated from config/arm_<name>.yaml."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from so101.config import ArmConfig
 
@@ -49,6 +49,7 @@ class SafetyConfig:
     contact_err_holding: int | None = None
     contact_drift_idle: int | None = None
     contact_window_s: float = 0.3
+    load_trip_overrides: dict[str, float] = field(default_factory=dict)  # joint -> load trip %, step 10a
     # collision model (step 8b); None = check disabled (YAML null)
     collision_table_margin_m: float | None = None
     collision_self_margin_m: float | None = None
@@ -86,6 +87,7 @@ class SafetyConfig:
             contact_err_holding=_threshold(s, "contact_err_holding_ticks"),
             contact_drift_idle=_threshold(s, "contact_drift_idle_ticks"),
             contact_window_s=float(s["contact_window_s"]),
+            load_trip_overrides={j: float(v) for j, v in (s.get("load_trip_pct_overrides") or {}).items()},
             collision_table_margin_m=_margin(s, "collision_table_margin_m"),
             collision_self_margin_m=_margin(s, "collision_self_margin_m"),
             collision_include_camera_mount=bool(s["collision_include_camera_mount"]),
@@ -94,6 +96,9 @@ class SafetyConfig:
             raise ValueError(f"speed_cap {out.speed_cap} outside 1..1000 ticks/s (raise the bound deliberately)")
         if not 1 <= out.accel_cap <= 254:
             raise ValueError(f"accel_cap {out.accel_cap} outside 1..254")
+        for j, v in out.load_trip_overrides.items():
+            if j not in limits or not 0 < v <= 100:
+                raise ValueError(f"load_trip_pct_overrides.{j} = {v}: unknown joint or outside 0..100 %")
         if not out.contact_window_s > 0:
             raise ValueError(f"contact_window_s {out.contact_window_s} must be > 0")
         if not 0 < out.temp_trip_c < 70:
