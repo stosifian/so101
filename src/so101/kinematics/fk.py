@@ -16,6 +16,7 @@ from so101.kinematics.model import JOINTS
 
 CHAIN_JOINTS = JOINTS[:5]  # the gripper joint moves only the moving jaw, not the tool site
 TOOL_SITE = "gripperframe"
+DEFAULT_TCP = "fixed_jaw_tip"  # Phase 1 tool point: the point the step 8c table touches measured (user choice)
 
 
 # --- SO(3) / SE(3) helpers ---------------------------------------------------------------------
@@ -74,7 +75,8 @@ def adjoint(T: np.ndarray) -> np.ndarray:
 @dataclass(frozen=True)
 class Chain:
     fixed: list[np.ndarray]  # T_i^fix, 4x4, for CHAIN_JOINTS
-    site: np.ndarray  # T_site, 4x4, in the last joint's body frame
+    site: np.ndarray  # T_site, 4x4, in the last joint's body frame (MuJoCo "gripperframe")
+    tcps: dict[str, np.ndarray] = field(default_factory=dict)  # named tool points, 4x4 in the last body frame
 
 
 @dataclass
@@ -96,12 +98,28 @@ def chain_from_mujoco(m: mujoco.MjModel) -> Chain:
     last_body = m.jnt_bodyid[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, CHAIN_JOINTS[-1])]
     if m.site_bodyid[sid] != last_body:
         raise ValueError(f"{TOOL_SITE} must sit on the {CHAIN_JOINTS[-1]} body")
-    return Chain(fixed, homog(quat_to_R(m.site_quat[sid]), m.site_pos[sid].copy()))
+    site = homog(quat_to_R(m.site_quat[sid]), m.site_pos[sid].copy())
+    # fixed-jaw tip: centre of the model's tip sphere. Orientation: z points OUT ALONG THE FINGERS, which is
+    # -z of the gripper body (the wrist_roll axis); x kept, y flipped (180 deg about x). The gripperframe
+    # site's z is sideways across the jaws, not along them (step 9a).
+    gid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "fixed_jaw_sph_tip1")
+    if m.geom_bodyid[gid] != last_body:
+        raise ValueError("fixed_jaw_sph_tip1 must sit on the gripper body")
+    tip = homog(np.diag([1.0, -1.0, -1.0]), m.geom_pos[gid].copy())
+    return Chain(fixed, site, {"gripperframe": site, "fixed_jaw_tip": tip})
 
 
-def frames(chain: Chain, q, params: FKParams | None = None) -> tuple[list[np.ndarray], np.ndarray]:
+def _tool(chain: Chain, tcp: str | np.ndarray | None) -> np.ndarray:
+    if tcp is None:
+        return chain.site
+    return chain.tcps[tcp] if isinstance(tcp, str) else tcp
+
+
+def frames(chain: Chain, q, params: FKParams | None = None,
+           tcp: str | np.ndarray | None = None) -> tuple[list[np.ndarray], np.ndarray]:  # fmt: skip
     """Joint frames T_{0,i} (each AFTER its fixed transform and correction, BEFORE its rotation, so the
-    frame's z-axis is joint i's axis) and the tool pose. q: 5 angles (rad), CHAIN_JOINTS order."""
+    frame's z-axis is joint i's axis) and the tool pose. q: 5 angles (rad), CHAIN_JOINTS order.
+    tcp: None = MuJoCo gripperframe site, a name from chain.tcps, or a 4x4 offset in the last body frame."""
     p = params or FKParams()
     T = np.eye(4)
     joint_frames = []
@@ -109,17 +127,18 @@ def frames(chain: Chain, q, params: FKParams | None = None) -> tuple[list[np.nda
         T = T @ chain.fixed[i] @ se3_exp(p.xi[i])
         joint_frames.append(T)
         T = T @ rot_z(q[i] + p.delta[i])
-    return joint_frames, T @ chain.site @ se3_exp(p.xi_tool)
+    return joint_frames, T @ _tool(chain, tcp) @ se3_exp(p.xi_tool)
 
 
-def fk(chain: Chain, q, params: FKParams | None = None) -> np.ndarray:
+def fk(chain: Chain, q, params: FKParams | None = None, tcp: str | np.ndarray | None = None) -> np.ndarray:
     """Tool pose T_base->tool (4x4) for joint angles q (5, rad)."""
-    return frames(chain, q, params)[1]
+    return frames(chain, q, params, tcp)[1]
 
 
-def geometric_jacobian(chain: Chain, q, params: FKParams | None = None) -> np.ndarray:
+def geometric_jacobian(chain: Chain, q, params: FKParams | None = None,
+                       tcp: str | np.ndarray | None = None) -> np.ndarray:  # fmt: skip
     """6x5: rows (linear; angular) velocity of the tool point in the base frame per joint rate."""
-    jf, T = frames(chain, q, params)
+    jf, T = frames(chain, q, params, tcp)
     p = T[:3, 3]
     J = np.zeros((6, 5))
     for i, F in enumerate(jf):
