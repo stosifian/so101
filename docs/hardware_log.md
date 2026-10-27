@@ -76,5 +76,5 @@ Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − 
 - **Telemetry read:** 15-byte block (addr 56–70) per servo, ~3.0 ms for 6 servos at 1 Mbps; poll limit ~330 Hz. Encoder noise at rest: 0 ticks.
 
 ## Physical setup
-- Base clamping:
+- Base clamping: **not rigid enough (2026-10-26):** during the step 6a push test (run 20261026-170706_hold_follower) a firm hand push on the arm shifted the whole arm on the table (the clamp slipped). Joint ticks are unaffected (measured between parts of the arm), but anything in the table/world frame is: calibration, the table plane, Phase 2 metrology. The step 6 table contact (39 % for ~3 s) may also have nudged it. Fix before steps 7–8.
 - Photos:
