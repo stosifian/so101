@@ -226,6 +226,11 @@ class SafeArm:
             self._event("reset", None, "trip acknowledged")
             self.state = State.DISABLED
 
+    @property
+    def last_goals(self) -> dict[str, int]:
+        """Goal_Position each joint was last commanded (enable hold position until moved)."""
+        return dict(self.contact.goal) if self.contact is not None else {}
+
     # --- freeze ----------------------------------------------------------------------------
 
     def freeze(self) -> StepResult:

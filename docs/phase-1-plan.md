@@ -3,7 +3,7 @@
 The source of truth for Phase 1. **Update this file every time the plan changes:** edit the table and
 add a dated entry to the deviation log, with the reason. `docs/ROADMAP.md` only summarizes it.
 
-Last updated: 2026-10-26 (revision 2).
+Last updated: 2026-10-27 (revision 3).
 
 ## Current plan
 
@@ -18,7 +18,7 @@ Last updated: 2026-10-26 (revision 2).
 | 6 | Per-joint sweeps with logging | **in progress**: pan, wrist_roll, gripper, wrist_flex (anchored), elbow (anchored) done; shoulder_lift hit the table | yes | split into 6a–6d (D6) |
 | 6a | **Contact detection** in SafeArm: following error (≈35 ticks moving / ≈12 holding, 0.3 s) + holding drift (> 10 ticks with no new goal) → **freeze**. Thresholds from replaying today's runs (normal sweeps pass, both contacts trigger). Then a controlled hardware test (slow pan into a soft obstacle must freeze). Fold in: `read_block` length check, per-sample error-byte logging | code done 2026-10-26 (replay: table contact frozen at 5.2 s by idle-elbow drift; 0 false contacts on 5 normal runs; gentle contact not caught, as documented). **Hardware test passed** (`20261026-170706_hold_follower`: hand push on idle pan froze at 14 ticks, held, torque off on Ctrl-C). Optional: moving-case test | one slow test | **new** (D6) |
 | 6b | Finish sweeps from a **pose clear of the table**, placed by hand (torque off); `--hold-at-end` keeps holding after the sweep until the user supports the arm and presses Ctrl-C. Goals: shoulder_lift's real gravity profile, wider elbow / wrist_flex ranges | tooling done (sim-tested); hardware runs next | yes | changed: not from rest pose (D6) |
-| 6c | `wait_until_settled(tol, approach_dir)` using `Moving` + position tolerance (≥ ±3 ticks; hysteresis 2–13 ticks measured), with tests | planned | yes | **scheduled** (Phase 2 obligation, previously unscheduled) (D7) |
+| 6c | `wait_until_settled` (`Moving` == 0 + steady position; error to goal reported, `tol` optional) + `approach(approach_dir)` (overshoot to the far side) + **dwell after encoder settle** (structural wobble the encoders can't see) + **min-jerk ramps** (default) | code done (sim-tested, 162 tests); hardware check `settle_check.py` next | yes | scheduled (D7); + dwell, min-jerk (D11) |
 | 6d | TUI vs no-TUI loop-timing comparison; close step 6 | planned | yes | — |
 | 7 | **Calibration = mapping ticks to model angles:** per-joint sign + zero offset (software, no EEPROM) between ticks and the MuJoCo Menagerie SO-101 model, from known physical poses, checked on ≥ 2 poses; refuse to start if the arm's pose doesn't fit the mapping | planned | to reference poses | reframed (was "own zero offsets") (D8) |
 | 8 | **Parameterized FK** (own chain code, because Phase 2 fits its parameters; checked against MuJoCo) **+ collision model:** MuJoCo self-collision + table; **table plane measured** by touching the gripper tip to ≥ 3 points (FK → plane, ~10 mm margin). Required test cases: today's two contacts. Also record one **base reference touch point** (for the Phase 2 base check) | planned | by hand only | + collision model, table plane, MuJoCo (D5, D8) |
@@ -76,3 +76,4 @@ Newest last. Each entry: what changed, why, evidence.
 | D8 | 2026-10-26 | Step 7 reframed as the tick→model mapping + refuse-to-start check; table plane measurement added to step 8 | A collision model is only valid if ticks map correctly onto it (rig-dependent zeros, robocurve #26) | — |
 | D9 | 2026-10-26 | Decisions inside steps: keep P = 32; motion default ~150 ticks/s; parking at the soft limit; wrist_roll max 3438 → 2550 (rest-pose limit) | Measured: 0 jitter at P=32, stick-slip depends on speed; contact at roll ≈ 2645 in rest pose | hardware log, `config/arm_follower.yaml` |
 | D10 | 2026-10-26 | Step 8 also records a base reference touch point; no new mounting step (stock clamps kept, user decision) | A hand push shifted the arm in its clamps (6a test); Phase 2 has no such forces, but an unnoticed shift would invalidate world-frame data, so Phase 2 re-touches the reference each session | `20261026-170706_hold_follower`; ROADMAP Phase 2 to-do |
+| D11 | 2026-10-27 | 6c adds min-jerk ramps (default; `--easing linear` reproduces step 5–6 runs) and a dwell after encoder settle | User saw end-effector wobble at every stop; encoders showed no ringing (structural flex beyond the encoders), excited by the linear ramp's instant stop | `20261027-092438_sweep_follower` encoder analysis |

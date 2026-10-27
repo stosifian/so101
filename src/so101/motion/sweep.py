@@ -69,13 +69,14 @@ def plan_sweep(joint: str, start: float, lo: int, hi: int, profile: str, *, frac
     return SweepPlan(joint, float(start), entry, [float(w) for w in path], home)
 
 
-def sweep_goals(plan: SweepPlan, speed: float, hold_s: float, entry_speed: float = 50.0) -> tuple[GoalFn, float]:
+def sweep_goals(plan: SweepPlan, speed: float, hold_s: float, entry_speed: float = 50.0,
+                easing: str = "linear") -> tuple[GoalFn, float]:  # fmt: skip
     """Goal function for control_loop: (entry ramp) -> every waypoint with a hold -> back home."""
     j, segs, pos = plan.joint, [], plan.start
     if plan.entry is not None:
-        segs.append(Segment({j: pos}, {j: plan.entry}, entry_speed))
+        segs.append(Segment({j: pos}, {j: plan.entry}, entry_speed, easing))
         pos = plan.entry
     for w in [*plan.path, plan.home]:
-        segs.append(Segment({j: pos}, {j: w}, speed))
+        segs.append(Segment({j: pos}, {j: w}, speed, easing))
         pos = w
     return sequence(segs, settle_s=hold_s)

@@ -51,6 +51,8 @@ def main() -> None:
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--mode", choices=["stream", "servo"], default="stream", help="see module docstring")
     ap.add_argument("--hold-s", type=float, default=2.0)
+    ap.add_argument("--easing", choices=["minjerk", "linear"], default="minjerk",
+                    help="ramp shape: minjerk (smooth start/stop, peak = --speed; default) or linear (step 5-6 runs)")
     ap.add_argument("--after-s", type=float, default=1.5)
     ap.add_argument("--rate", type=float, default=100.0)
     ap.add_argument("--tui", action="store_true")
@@ -104,7 +106,8 @@ def main() -> None:
                     segs = [s for _ in range(args.cycles) for s in (Segment(a, b, jump), Segment(b, a, jump))]
                     goal_fn, total = sequence(segs, settle_s=abs(args.amplitude) / args.speed + args.hold_s)
                 else:
-                    segs = [s for _ in range(args.cycles) for s in (Segment(a, b, args.speed), Segment(b, a, args.speed))]
+                    segs = [s for _ in range(args.cycles)
+                            for s in (Segment(a, b, args.speed, args.easing), Segment(b, a, args.speed, args.easing))]
                     goal_fn, total = sequence(segs, settle_s=args.hold_s)
                 result["plan"] = {"start": p0, "target": target, "total_s": total, "mode": args.mode}
                 result["enable"] = arm.enable()

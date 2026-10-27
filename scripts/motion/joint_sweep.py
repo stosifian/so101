@@ -58,6 +58,8 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--speed", type=float, default=150.0)
     ap.add_argument("--hold-s", type=float, default=1.0)
+    ap.add_argument("--easing", choices=["minjerk", "linear"], default="minjerk",
+                    help="ramp shape: minjerk (smooth start/stop, peak = --speed; default) or linear (step 5-6 runs)")
     ap.add_argument("--after-s", type=float, default=1.5)
     ap.add_argument("--rate", type=float, default=100.0)
     ap.add_argument("--tui", action="store_true")
@@ -101,7 +103,7 @@ def main() -> None:
     except ValueError as e:
         bus.close()
         sys.exit(f"plan refused: {e}")
-    goal_fn, total = sweep_goals(plan, args.speed, args.hold_s)
+    goal_fn, total = sweep_goals(plan, args.speed, args.hold_s, easing=args.easing)
     far = max(plan.path, key=lambda w: abs(w - plan.home))
     console.print(f"[bold]{args.joint}[/] {profile} sweep, limits [{lo}, {hi}], start {start}"
                   + (f" (outside: enters range at {plan.entry:.0f} first, ends there)" if plan.entry is not None else ""))  # fmt: skip
@@ -119,7 +121,8 @@ def main() -> None:
             sys.exit("\naborted before enabling")
 
     run = Run("sweep_sim" if args.sim else "sweep", "follower", config_paths=[cfg.path],
-              notes=f"step 6 {args.joint} {profile} path={[int(w) for w in plan.path]} speed={args.speed:g}; "
+              notes=f"step 6 {args.joint} {profile} path={[int(w) for w in plan.path]} speed={args.speed:g} "
+                    f"easing={args.easing}; "
                     f"sim={args.sim}; {args.notes}")  # fmt: skip
     live = LiveSession(run, {"follower": cfg.expected_voltage_v}, args.tui, args.viz,
                        title=f"[TORQUE ON: SWEEP {args.joint}] {run.run_id} — Ctrl-C = freeze, again = torque off")  # fmt: skip

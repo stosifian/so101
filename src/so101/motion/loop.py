@@ -66,23 +66,40 @@ def control_loop(arm: SafeArm, rate_hz: float, goal_fn: GoalFn, duration_s: floa
     return stats
 
 
+# Minimum-jerk point-to-point profile s(tau) = 10 tau^3 - 15 tau^4 + 6 tau^5 (zero velocity and acceleration at
+# both ends). Its peak speed is 1.875x the average, so the move takes 1.875x longer than a linear ramp at the
+# same `speed`, which keeps the PEAK at `speed` (inside the caps). Smooth starts/stops excite less structural
+# wobble than the linear ramp's instant stop (user observation, step 6; encoders showed no ringing).
+MINJERK_STRETCH = 1.875
+
+
+def _minjerk(tau: float) -> float:
+    return tau * tau * tau * (10 - 15 * tau + 6 * tau * tau)
+
+
 @dataclass(frozen=True)
 class Segment:
     start: dict[str, float]
     target: dict[str, float]
-    speed: float  # ticks/s, along each joint (each joint ramps at this speed, finishing when done)
+    speed: float  # ticks/s: constant speed (linear) or peak speed (minjerk); each joint finishes on its own
+    easing: str = "linear"  # linear | minjerk
+
+    def _reach(self, j: str) -> float:
+        if self.speed <= 0:
+            return 0.0
+        base = abs(self.target[j] - self.start[j]) / self.speed
+        return base * MINJERK_STRETCH if self.easing == "minjerk" else base
 
     @property
     def duration_s(self) -> float:
-        return max((abs(self.target[j] - self.start[j]) / self.speed for j in self.target), default=0.0)
+        return max((self._reach(j) for j in self.target), default=0.0)
 
     def at(self, t: float) -> dict[str, float]:
         out = {}
         for j, goal in self.target.items():
-            s = self.start[j]
-            reach = abs(goal - s) / self.speed if self.speed > 0 else 0.0
-            frac = 1.0 if reach == 0 or t >= reach else max(t, 0.0) / reach
-            out[j] = s + (goal - s) * frac
+            s, reach = self.start[j], self._reach(j)
+            tau = 1.0 if reach == 0 or t >= reach else max(t, 0.0) / reach
+            out[j] = s + (goal - s) * (_minjerk(tau) if self.easing == "minjerk" else tau)
         return out
 
 
