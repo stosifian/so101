@@ -96,6 +96,12 @@ Evidence: references `20261027-095547`, nudges `20261027-101247`, validation `20
 | `20261027-124750_model_check_follower` | corner | 8 + baseref | −0.2…+8.5 mm (3.9 ± 2.5) | 1.1° |
 The remaining error grows with reach (+20 mm per m) and is explained by a **+1.03° shoulder_lift zero error**: correcting it (zero 2222 → 2210) gives 1.5 mm RMS (leave-one-out 1.8, max 3.7 mm). Adding elbow/wrist_flex corrections predicts held-out touches worse (overfit). At table level a ~1° lift error and a ~1° base tilt look alike; Phase 2 separates them. Remaining scatter (~1.5–2.5 mm) matches the error budget (encoder resolution, play beyond the encoders, hand touching, other by-eye zeros, CAD tolerances, plank flatness).
 
+## Cartesian line (step 9d, `cartesian_line.py`, fixed-jaw tip, min-jerk 30 mm/s peak, P=32)
+| Run | Line | Commanded vs ideal | Measured vs commanded | Straightness (measured vs ideal) | End errors |
+|-----|------|--------------------|-----------------------|----------------------------------|------------|
+| `20261027-135238_cartesian_follower` | 80 mm along +x at tip ≈ (269, 10, 330) mm, out and back | ≤ 0.6 mm (no clamps) | lag along line ≤ 7.1 mm; **sag −8.4 mm vertical**; 1.0 mm sideways | max 8.5 mm, RMS 4.7 mm | far end 7.3 mm, return 3.6 mm |
+The plan is exact; the error is the P-only servos: lift/wrist_flex up to 17–22 ticks behind goal holding against gravity (step 6 "error = load ÷ stiffness"), plus following lag. Phase 3's stiffness-compensation layer targets exactly this. 147 overruns in 11 s (TUI + ~1 ms/cycle of collision checks), no trips, no freezes, 0 bus failures.
+
 ## Collision model (step 8b, `so101.kinematics.collision`, MuJoCo geometry only)
 Table plane = base underside (z = −2.4 mm), camera mount included, collision shapes = the Menagerie model's boxes + gripper shapes.
 | Pose (real run) | Closest to table | Result |
