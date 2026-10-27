@@ -86,3 +86,19 @@ def test_live_session_first_ctrl_c_freezes_second_stops(tmp_path):
     assert live.run_until_done(th, Console(file=open("/dev/null", "w"))) is True
     live.close()
     assert seen["frozen_before_stop"] and live.stop.is_set()
+
+
+def test_after_a_contact_freeze_first_ctrl_c_turns_torque_off(tmp_path):
+    run = Run("test", "follower", root=tmp_path)
+    live = LiveSession(run, {"follower": (11.0, 13.0)}, tui=False, viz=False)
+    live.status_fn = lambda: "FROZEN by contact detection (test)"
+
+    def worker():
+        live.stop.wait(5)
+
+    th = threading.Thread(target=worker)
+    th.start()
+    threading.Timer(0.4, _thread.interrupt_main).start()  # a single Ctrl-C
+    assert live.run_until_done(th, Console(file=open("/dev/null", "w"))) is True
+    live.close()
+    assert live.stop.is_set()

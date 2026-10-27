@@ -54,6 +54,8 @@ class LiveSession:
                             console.print(f"[yellow]Rerun display stopped: {e}")
                             self.viz = None
                     status = self.status_fn() if self.status_fn else None
+                    if status:
+                        self.freeze.set()  # already frozen (e.g. by contact): the next Ctrl-C means torque off
                     if status and status != self._status_shown and not self.tui:
                         console.print(f"[bold yellow]{status}")
                     self._status_shown = status
@@ -63,7 +65,7 @@ class LiveSession:
                         live.update(self.tui.render())
                 except KeyboardInterrupt:
                     interrupts += 1
-                    if interrupts == 1 and self.freeze_first:
+                    if self.freeze_first and not self.freeze.is_set():
                         self.freeze.set()
                         self.footer = ["FROZEN: holding position, torque ON. Support the arm, then Ctrl-C again = torque off."]
                         if not self.tui:
