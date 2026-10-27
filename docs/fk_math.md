@@ -111,17 +111,47 @@ Not all $5 + 30 + 6 = 41$ parameters can be identified from tool measurements. E
 Phase 2 selects a minimal identifiable subset (rank of the parameter Jacobian over the measured poses) and fixes
 the rest at zero. The code exposes all of them.
 
-## 4. Why this form and not DH or a space-frame POE
+## 4. Why this form and not DH or a space-frame PoE
 
-- **Denavit–Hartenberg** would need the frames re-derived from the CAD, and the SO-101 has three **parallel**
-  axes (lift, elbow, wrist_flex). With parallel axes, DH-based calibration is ill-conditioned: a tiny axis
-  misalignment produces large jumps in the DH parameters (Hayati's problem).
-- **Space-frame product of exponentials**
-  $T(q) = e^{[\hat S_1] q_1} \cdots e^{[\hat S_5] q_5} M$ handles parallel axes well and is mathematically
-  equivalent, but its screw axes $S_i$ are expressed in the base frame. That means re-expressing the model and losing
-  the one-to-one link to its bodies.
-- The **local form** keeps each correction attached to the physical link it describes, maps one-to-one onto
-  the MJCF (so verification against MuJoCo is direct), and avoids the DH singularities.
+**Denavit–Hartenberg** would need the frames re-derived from the CAD, and the SO-101 has three **parallel**
+axes (lift, elbow, wrist_flex). With parallel axes, DH-based calibration is ill-conditioned: a tiny axis
+misalignment produces large jumps in the DH parameters (Hayati's problem). Ruled out.
+
+**Space-frame product of exponentials** is a valid alternative:
+
+$$
+T(q) = e^{[\hat S_1] q_1}\, e^{[\hat S_2] q_2} \cdots e^{[\hat S_5] q_5}\, M,
+\qquad S_i = (\omega_i,\ v_i),\quad v_i = -\,\omega_i \times r_i ,
+$$
+
+with $S_i$ joint $i$'s screw axis in the **base frame at the home pose** ($q = 0$), $r_i$ a point on it, and
+$M = T_{\text{tool}}(0)$. Each revolute screw has 4 independent numbers ($\lVert\omega_i\rVert = 1$,
+$\omega_i \cdot v_i = 0$), so calibration has $5 \cdot 4 + 6 = 26$ parameters: close to minimal, continuous,
+no singularities for parallel axes (Okamura & Park, 1996). That is its main strength.
+
+Why the local form is the main implementation anyway:
+
+| | local PoE (chosen) | space-frame PoE |
+|---|---|---|
+| joint zero offsets | explicit $\delta_i$, fed straight back into the step 7 tick mapping | not separately identifiable: absorbed into $M$ and later screws |
+| meaning of a correction | attached to a physical link ("upper arm placement off 0.3 mm / 0.2°") | expressed in the base frame |
+| updating the MuJoCo collision model | body by body, directly | needs conversion back to body frames |
+| verification vs MuJoCo | one-to-one with the MJCF bodies | via the conversion below |
+| parameter count | 41, over-parameterized: Phase 2 must select an identifiable subset | ~26, near-minimal by construction |
+| parallel axes | fine | fine |
+
+**They describe the same kinematics.** The space screws and home pose follow from the local chain at $q = 0$:
+
+$$
+S_i = \mathrm{Ad}_{T_{0,i}(0)}\,\hat{e}_z,\qquad \hat{e}_z = (0,0,1,\ 0,0,0),
+\qquad
+\mathrm{Ad}_T = \begin{bmatrix} R & 0 \\ [p]_\times R & R \end{bmatrix},
+\qquad M = T_{\text{tool}}(0),
+$$
+
+where $T_{0,i}(0)$ is joint $i$'s frame at the home pose. That gives $\omega_i = R\,e_z$ and $v_i = p \times \omega_i$
+(i.e. $-\omega_i \times p$). The code exports $S_{1..5}$ and $M$ and tests that both formulations give the same pose
+(`so101.kinematics.fk.space_screws`, `fk_space`).
 
 ## 5. Jacobians
 
