@@ -6,10 +6,11 @@
 #   Then nudged live to line the model up with the arm (run 20261027-101247_model_check_follower,
 #   mapping_proposal_101719.json): elbow -6.0 deg, wrist_roll +1.0 deg, gripper -11.0 deg.
 # Previous values (2026-10-27 hypothesis = midpoints of the 2026-10-26 hand sweep) kept in comments.
-# Known: with these zeros the rest pose maps lift to ~-107 deg and wrist_flex's swept min to ~-105 deg,
-# ~7-10 deg beyond the model's ranges (by-eye reference error and/or model ranges vs this unit's stops).
+# Known: this unit's stops reach ~7-11 deg beyond the model's nominal ranges (lift ~-107, wrist_flex ~-106
+# deg; gripper closed ~-11 deg vs model -10), so the plausibility check uses model range UNION this arm's
+# measured range (measured_range_ticks, from the 2026-10-26 hand sweep).
 model: models/so101_menagerie/scene.xml
-status: measured_by_eye
+status: verified_by_eye   # 3 mixed validation poses lined up (run 20261027-103553_model_check_follower)
 joints:
   shoulder_pan:  {sign: 1, zero_ticks: 2213}   # arm straight forward       (hypothesis 2187, +2.3 deg)
   shoulder_lift: {sign: 1, zero_ticks: 2222}   # upper arm vertical          (hypothesis 2106, +10.2 deg)
@@ -17,3 +18,10 @@ joints:
   wrist_flex:    {sign: 1, zero_ticks: 2148}   # wrist in line with forearm  (hypothesis 1986, +14.2 deg)
   wrist_roll:    {sign: 1, zero_ticks: 2156}   # matched to the ghost; ref 2167, nudged +1.0 deg (hypothesis 2048)
   gripper:       {sign: 1, zero_ticks: 2172}   # jaws just touching; ref 2047, nudged -11.0 deg (hypothesis 2032)
+measured_range_ticks:  # this unit's hand-swept extremes (docs/hardware_log.md, 2026-10-26)
+  shoulder_pan:  [919, 3454]
+  shoulder_lift: [1003, 3208]
+  elbow_flex:    [715, 2928]
+  wrist_flex:    [946, 3025]
+  wrist_roll:    [291, 3488]
+  gripper:       [2032, 3497]

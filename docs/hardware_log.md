@@ -68,6 +68,19 @@ Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − 
 | TUI (10 Hz redraw) | 21 / 1 | 10.0 / 14.0 / 28 ms | 8.3 / 17 ms |
 The TUI redraw competes with the control thread in the same process (Python's global lock). Use no TUI for timing-sensitive runs.
 
+## Tick → model mapping (step 7, `config/calibration/follower_mapping.yaml`, verified by eye)
+q_rad = (ticks − zero) × 2π/4096, all signs +1, model = MuJoCo Menagerie SO-101 (zero = LeRobot middle pose).
+| Joint | zero_ticks | How |
+|---|---|---|
+| shoulder_pan | 2213 | arm straight forward |
+| shoulder_lift | 2222 | upper arm vertical (by eye) |
+| elbow_flex | 1897 | forearm ⟂ upper arm, then nudged −6° live |
+| wrist_flex | 2148 | in line with forearm |
+| wrist_roll | 2156 | matched to the model ghost, nudged +1° |
+| gripper | 2172 | jaws just touching, nudged −11° (≈ normal closed reading 2145) |
+Evidence: references `20261027-095547`, nudges `20261027-101247`, validation `20261027-103553` (all `_model_check_follower`).
+**This unit's stops reach 7–11° past the model's nominal ranges:** lift ≈ −107° (model −100), wrist_flex ≈ −106° (model −95), gripper closed ≈ −11° (model −10). Accuracy ±2–5° by eye; Phase 2 fits the zeros precisely.
+
 ## Collisions / contact
 - **wrist_roll vs shoulder (step 6, run 20261026-160843_sweep_follower):** with the arm in rest pose (elbow 2927, wrist_flex 2853), rolling the wrist up to ~2645–2664 brings the gripper base against the shoulder (seen by the user). Load during the approach (~6.4 %) looked the same as normal 150 ticks/s motion, so **gentle contact is not detectable from load at these speeds; it has to be prevented by limits or geometry.** Pose-dependent: the per-joint hand sweep could not find it. **Action: wrist_roll max lowered 3438 → 2550 in config (≈8° before contact). That's a rest-pose limit applied in every pose for now; FK collision checking (steps 8–9) should relax it where the pose allows.**
 

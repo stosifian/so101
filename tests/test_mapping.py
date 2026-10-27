@@ -37,3 +37,14 @@ def test_fk_moves_tool_when_lift_moves():
     p0 = MODEL.tool_pos()
     MODEL.set_q({**{j: 0.0 for j in JOINTS}, "shoulder_lift": 0.3})
     assert abs(MODEL.tool_pos() - p0).max() > 0.02
+
+
+def test_validation_poses_are_plausible_including_beyond_model_range():
+    """check3 (20261027-103553): wrist_flex at -106 deg, past the model's -95 but within this arm's stops."""
+    check3 = {"shoulder_pan": MAP.joints["shoulder_pan"].to_ticks(math.radians(-38.32)),
+              "shoulder_lift": 1003, "elbow_flex": MAP.joints["elbow_flex"].to_ticks(math.radians(25.05)),
+              "wrist_flex": 946 + 1, "wrist_roll": MAP.joints["wrist_roll"].to_ticks(math.radians(-88.77)),
+              "gripper": MAP.joints["gripper"].to_ticks(math.radians(-11.07))}  # fmt: skip
+    assert MAP.status == "verified_by_eye"
+    assert MAP.check(check3, MODEL.ranges) == {}
+    assert "wrist_flex" in MAP.check({**check3, "wrist_flex": 300}, MODEL.ranges)  # far past the real stop
