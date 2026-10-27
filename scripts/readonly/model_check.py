@@ -10,11 +10,18 @@ To verify zero and sign: match the arm to the ghost, record it; then move single
 
 In the terminal, type a label and press Enter to record the current pose (ticks + mapped angles) to
 data/raw/<run_id>/poses.json; `q` + Enter quits. Every recorded pose is checked against the model ranges.
+
+Interactive zero adjustment (live): `<joint> <+/-deg>` shifts that joint's zero, e.g. `elbow +2`, `wroll -1.5`
+(joints: pan, lift, elbow, wflex, wroll, grip). Positive moves the model in the joint's + direction.
+`adj` shows the adjustments, `reset <joint>` undoes one, `save` writes data/raw/<run_id>/mapping_proposal.yaml
+(old vs new zero_ticks). The mapping config is only changed after review.
 """
 
 import argparse
+import dataclasses
 import json
 import math
+import re
 import threading
 import time
 
@@ -28,7 +35,7 @@ from so101.config import REPO_ROOT, load_arm_config
 from so101.hw.arm import Arm
 from so101.hw.bus import FeetechBus
 from so101.hw.sim import SimBus
-from so101.kinematics.mapping import load_mapping
+from so101.kinematics.mapping import RAD_PER_TICK, load_mapping
 from so101.kinematics.model import JOINTS, ArmModel
 from so101.runlog.run import Run
 
@@ -45,6 +52,10 @@ def log_pose(rec, root: str, model: ArmModel, meshes, static: bool = False) -> N
     for vm in meshes:
         pos, mat = model.geom_pose(vm.geom_id)
         rr.log(f"{root}/geom_{vm.geom_id}", rr.Transform3D(translation=pos, mat3x3=mat), static=static, recording=rec)
+
+
+SHORT = {"pan": "shoulder_pan", "lift": "shoulder_lift", "elbow": "elbow_flex", "wflex": "wrist_flex",
+         "wroll": "wrist_roll", "grip": "gripper"}  # fmt: skip
 
 
 def main() -> None:
@@ -82,7 +93,8 @@ def main() -> None:
     ghost.set_q(ghost_q)
     log_pose(rec, "/model/ghost", ghost, meshes, static=True)
 
-    state: dict = {"snap": None, "stop": False, "t0": time.monotonic()}
+    original = mapping
+    state: dict = {"snap": None, "stop": False, "t0": time.monotonic(), "mapping": mapping, "adj_deg": {}}
 
     def reader() -> None:
         while not state["stop"]:
@@ -90,7 +102,7 @@ def main() -> None:
             state["snap"] = snap
             ticks = {j: s.position for j, s in snap.joints.items() if s is not None}
             if len(ticks) == len(JOINTS):
-                real.set_q(mapping.to_q(ticks))
+                real.set_q(state["mapping"].to_q(ticks))
                 rr.set_time("monotonic", duration=np.timedelta64(snap.t_start_ns - run.header["started_monotonic_ns"], "ns"),
                             recording=rec)  # fmt: skip
                 log_pose(rec, "/model/real", real, meshes)
@@ -104,18 +116,49 @@ def main() -> None:
     poses = []
     try:
         while True:
-            label = input("label + Enter = record pose, q = quit > ").strip()
+            label = input("label = record pose | <joint> +/-deg = nudge zero | adj | reset <joint> | save | q > ").strip()
             if label.lower() == "q":
                 break
+            m = re.fullmatch(r"(pan|lift|elbow|wflex|wroll|grip)\s+([+-]?\d+(?:\.\d+)?)", label)
+            if m:
+                j, deg = SHORT[m.group(1)], float(m.group(2))
+                state["adj_deg"][j] = state["adj_deg"].get(j, 0.0) + deg
+                jm = state["mapping"].joints[j]
+                # model angle q = sign*(t - zero): to move the model by +deg, lower zero by sign*deg
+                new = dataclasses.replace(jm, zero_ticks=jm.zero_ticks - jm.sign * math.radians(deg) / RAD_PER_TICK)
+                state["mapping"] = dataclasses.replace(state["mapping"], joints={**state["mapping"].joints, j: new})
+                console.print(f"{j}: zero {original.joints[j].zero_ticks:.0f} → {new.zero_ticks:.1f} "
+                              f"(total {state['adj_deg'][j]:+.1f}°)")  # fmt: skip
+                continue
+            if label.lower() == "adj":
+                console.print({j: f"{a:+.1f}° → zero {state['mapping'].joints[j].zero_ticks:.1f}" for j, a in state["adj_deg"].items()} or "no adjustments")
+                continue
+            m = re.fullmatch(r"reset\s+(pan|lift|elbow|wflex|wroll|grip)", label.lower())
+            if m:
+                j = SHORT[m.group(1)]
+                state["adj_deg"].pop(j, None)
+                state["mapping"] = dataclasses.replace(state["mapping"], joints={**state["mapping"].joints, j: original.joints[j]})
+                console.print(f"{j}: back to zero {original.joints[j].zero_ticks:.0f}")
+                continue
+            if label.lower() == "save":
+                prop = {"source_mapping": str(mapping.path.relative_to(REPO_ROOT)), "run_id": run.run_id,
+                        "joints": {j: {"old_zero_ticks": original.joints[j].zero_ticks,
+                                       "new_zero_ticks": round(state["mapping"].joints[j].zero_ticks, 1),
+                                       "adjust_deg": round(state["adj_deg"].get(j, 0.0), 2)} for j in JOINTS}}  # fmt: skip
+                path = run.dir / f"mapping_proposal_{time.strftime('%H%M%S')}.json"
+                path.write_text(json.dumps(prop, indent=2))
+                console.print(f"saved proposal → {path}")
+                continue
             snap = state["snap"]
             if snap is None or not snap.ok:
                 console.print("[red]no complete reading yet")
                 continue
             ticks = {j: snap.joints[j].position for j in JOINTS}
-            q = mapping.to_q(ticks)
-            bad = mapping.check(ticks, real.ranges)
+            q = state["mapping"].to_q(ticks)
+            bad = state["mapping"].check(ticks, real.ranges)
             real.set_q(q)
             poses.append({"label": label or f"pose{len(poses) + 1}", "t_ns": snap.t_start_ns, "ticks": ticks,
+                          "adjust_deg": dict(state["adj_deg"]),
                           "q_deg": {j: round(math.degrees(v), 2) for j, v in q.items()},
                           "tool_m": [round(float(x), 4) for x in real.tool_pos()], "outside_model_range": list(bad)})  # fmt: skip
             t = Table(title=f"recorded '{poses[-1]['label']}'", title_justify="left")
