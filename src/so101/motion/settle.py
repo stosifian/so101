@@ -83,7 +83,7 @@ def wait_until_settled(arm: SafeArm, joints: list[str] | None = None, *, tol: in
 
 def approach(arm: SafeArm, targets: dict[str, float], approach_dir: dict[str, int], *, speed: float = 150.0,
              overshoot: int = 40, easing: str = "minjerk", rate_hz: float = 100.0, settle: bool = True,
-             **settle_kw) -> SettleResult | None:  # fmt: skip
+             stop=None, freeze=None, **settle_kw) -> SettleResult | None:  # fmt: skip
     """Move each joint to its target so that the LAST motion is in `approach_dir[j]` (+1 = increasing ticks):
     if the joint would otherwise arrive from the wrong side, it first goes `overshoot` ticks past the target
     on the opposite side. Then (optionally) wait_until_settled. Uses the normal SafeArm clamps and checks."""
@@ -98,7 +98,7 @@ def approach(arm: SafeArm, targets: dict[str, float], approach_dir: dict[str, in
         pre[j] = tgt - d * overshoot if (tgt - start[j]) * d <= overshoot else start[j]
     segs = [Segment(start, pre, speed, easing), Segment(pre, dict(targets), speed, easing)]
     goal_fn, total = sequence(segs)
-    control_loop(arm, rate_hz, goal_fn, total + 0.05)
-    if arm.frozen:
+    control_loop(arm, rate_hz, goal_fn, total + 0.05, stop, freeze=freeze)
+    if arm.frozen or (stop is not None and stop.is_set()):
         return None
     return wait_until_settled(arm, list(targets), rate_hz=rate_hz, approach_dir=approach_dir, **settle_kw) if settle else None
