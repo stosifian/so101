@@ -1,0 +1,14 @@
+# Tick -> model joint angle (step 7):  q_rad = sign * (ticks - zero_ticks) * 2*pi / 4096
+# Model: models/so101_menagerie (joint zero = LeRobot "middle of range" convention).
+# status: hypothesis until the pose checks pass (then: verified, with run IDs).
+model: models/so101_menagerie/scene.xml
+status: hypothesis
+joints:            # sign, zero_ticks   (hypothesis = midpoint of the 2026-10-26 hand sweep, sign +1)
+  shoulder_pan:  {sign: 1, zero_ticks: 2187}   # swept 919..3454
+  shoulder_lift: {sign: 1, zero_ticks: 2106}   # swept 1003..3208
+  elbow_flex:    {sign: 1, zero_ticks: 1822}   # swept 715..2928
+  wrist_flex:    {sign: 1, zero_ticks: 1986}   # swept 946..3025
+  wrist_roll:    {sign: 1, zero_ticks: 2048}   # LeRobot treats it as full-turn: mid of 0..4095
+  gripper:       {sign: 1, zero_ticks: 2032}   # closed (swept min) = 0 rad; model range -10..100 deg
+# Alternative to test if poses disagree: zero_ticks = 2047 for every joint (LeRobot's half-turn
+# homing puts the calibration "middle" pose at 2047, and Seeed wrote homing offsets at the factory).

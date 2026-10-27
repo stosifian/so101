@@ -13,6 +13,7 @@ dependencies = [
     "rerun-sdk",
     "pyarrow",
     "matplotlib",
+    "mujoco>=3.17.0",
 ]
 
 [dependency-groups]
