@@ -1,0 +1,44 @@
+{
+ "20261026-154001_move_follower": {
+  "kind": "normal",
+  "joint": "shoulder_pan",
+  "t_on_ns": 5365348791877125,
+  "t_off_ns": 5365359463408708
+ },
+ "20261026-160702_sweep_follower": {
+  "kind": "normal",
+  "joint": "shoulder_pan",
+  "t_on_ns": 5366969864677541,
+  "t_off_ns": 5367006871889833
+ },
+ "20261026-160843_sweep_follower": {
+  "kind": "gentle_contact",
+  "joint": "wrist_roll",
+  "t_on_ns": 5367070258960125,
+  "t_off_ns": 5367105632954666
+ },
+ "20261026-161842_sweep_follower": {
+  "kind": "normal",
+  "joint": "gripper",
+  "t_on_ns": 5367669138102833,
+  "t_off_ns": 5367695955240166
+ },
+ "20261026-162422_sweep_follower": {
+  "kind": "normal",
+  "joint": "wrist_flex",
+  "t_on_ns": 5368009248554541,
+  "t_off_ns": 5368025253258291
+ },
+ "20261026-162529_sweep_follower": {
+  "kind": "normal",
+  "joint": "elbow_flex",
+  "t_on_ns": 5368076562996041,
+  "t_off_ns": 5368094948741166
+ },
+ "20261026-162655_sweep_follower": {
+  "kind": "table_contact",
+  "joint": "shoulder_lift",
+  "t_on_ns": 5368162757724125,
+  "t_off_ns": 5368178766599958
+ }
+}

@@ -23,6 +23,7 @@ What we change and why:
 """
 
 import enum
+import logging
 import time
 from collections import Counter
 from dataclasses import asdict, dataclass, field
@@ -31,8 +32,12 @@ from so101.config import ArmConfig
 from so101.hw.arm import Arm, ArmSnapshot
 from so101.hw.bus import BusError, ServoBus, read
 from so101.safety.config import SafetyConfig
+from so101.safety.contact import Contact, ContactChecker
 from so101.safety.trips import Trip, TripChecker
 from so101.telemetry.hub import Hub, Sample
+
+
+log = logging.getLogger("so101.safety")
 
 
 class State(enum.Enum):
@@ -90,7 +95,9 @@ class SafeArm:
         self._entered = False
         self._last_torque_check_ns: int | None = None
         self._servo_errors_seen = 0
-        self.frozen = False  # set by freeze(); goals are refused until the next enable()
+        self.frozen = False  # set by freeze() or contact detection; goals refused until the next enable()
+        self.contact: ContactChecker | None = None  # created at enable()
+        self.contact_hit: Contact | None = None
 
     # --- lifecycle -------------------------------------------------------------------------
 
@@ -100,6 +107,9 @@ class SafeArm:
         self._servo_errors_seen = sum(
             n for (_, flag), n in self.bus.stats.servo_errors.items() if flag not in ("voltage", "overheat")
         )
+        for name in self.safety.disabled_contact_checks():
+            log.warning("contact check %s is DISABLED (null in config)", name)
+            self._event("check_disabled", None, f"{name} = null: this contact check is off for the session")
         try:
             self._preflight()
         except BaseException:
@@ -166,6 +176,8 @@ class SafeArm:
             self.state = State.TRIPPED
             raise SafetyError(f"enable failed, torque turned off: {e}") from e
         self.state = State.HOLDING
+        self.contact = ContactChecker(self.safety, report.present, time.monotonic_ns())
+        self.contact_hit = None
         self._event("enable_ok", None, f"holding {report.present}")
         return report
 
@@ -261,11 +273,23 @@ class SafeArm:
         snap = self.arm.snapshot()
         trip = self.trips.feed(snap) or self._bus_checks(snap)
         commanded: dict[str, int] = {}
-        if trip is None and goals:
+        hit = None
+        if trip is None and self.contact is not None and self.state is State.HOLDING and not self.frozen and not self.shadow:
+            hit = self.contact.check(snap)
+        if hit is not None:  # freeze in place: goal := present everywhere, torque stays on
+            commanded = self.clamp_goals({j: s.position for j, s in snap.joints.items() if s is not None}, snap)
+            for joint, g in commanded.items():
+                self._write(self.cfg.joints[joint], "Goal_Position", g)
+            self.contact.update(commanded, snap.t_start_ns)
+            self.frozen, self.contact_hit = True, hit
+            self._event("contact", hit.joint, f"{hit.detail} -> FROZEN (goal := present, torque on)")
+        elif trip is None and goals:
             commanded = self.clamp_goals(goals, snap)
             for joint, g in commanded.items():
                 if not self.shadow:
                     self._write(self.cfg.joints[joint], "Goal_Position", g)
+            if self.contact is not None and not self.shadow:
+                self.contact.update(commanded, snap.t_start_ns)
         if self.hub is not None:  # publish before tripping, so the log holds the tripping sample
             self.hub.publish(Sample(self.cfg.name, self.seq, snap, commanded or None))
         self.seq += 1

@@ -30,21 +30,20 @@ def control_loop(arm: SafeArm, rate_hz: float, goal_fn: GoalFn, duration_s: floa
     """Call arm.step(goal_fn(t)) at rate_hz until duration_s, `stop` is set, or a trip raises.
     `on_tick(t)` runs before each step (fault injection in demos/tests).
 
-    If `freeze` is set: arm.freeze() once (goal := present, torque stays on), then keep monitoring
-    with no goals and IGNORE duration_s: the arm holds until `stop` is set (second Ctrl-C) or a trip."""
+    If `freeze` is set, or SafeArm froze itself (contact detected): freeze once (goal := present, torque
+    stays on), then keep monitoring with no goals and IGNORE duration_s: the arm holds until `stop` is
+    set (Ctrl-C) or a trip."""
     period = int(1e9 / rate_hz)
     stats, stop = LoopStats(), stop or threading.Event()
-    stats_frozen = False
     t0 = next_t = time.monotonic_ns()
     try:
         while not stop.is_set():
             t = (time.monotonic_ns() - t0) / 1e9
-            if freeze is not None and freeze.is_set():
-                if not stats_frozen:
-                    arm.freeze()
-                    stats_frozen = stats.frozen = True
-                else:
-                    arm.step()
+            if (freeze is not None and freeze.is_set()) or arm.frozen:
+                if not arm.frozen:
+                    arm.freeze()  # user freeze (Ctrl-C); SafeArm freezes itself on contact
+                stats.frozen = True
+                arm.step()
             else:
                 if t >= duration_s:
                     break

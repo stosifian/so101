@@ -38,3 +38,11 @@ safety:
   comm_fail_trip: 5            # consecutive snapshots with a failed servo
   torque_check_s: 0.5          # how often Torque_Enable is re-read while enabled
   enable_drift_tol_ticks: 20   # max present-position change during the enable sequence
+  # Contact detection (step 6a, approved 2026-10-26): |position - last commanded goal| sustained for
+  # contact_window_s, by joint role -> FREEZE (hold, torque on). Set a threshold to null to disable
+  # that check (logged as a warning + event every run). Tuned on step 6 runs near rest; larger gravity
+  # loads may false-freeze until gravity is subtracted (step 8). Gentle contact is NOT detectable.
+  contact_err_moving_ticks: 40   # joint whose goal changed within the window (normal <= 29)
+  contact_err_holding_ticks: 25  # commanded joint holding its goal (normal <= 14, elbow gravity)
+  contact_drift_idle_ticks: 10   # joint not commanded since enable (normal <= 3)
+  contact_window_s: 0.3

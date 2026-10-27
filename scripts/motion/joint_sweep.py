@@ -145,6 +145,9 @@ def main() -> None:
             marks.setdefault("torque_off_ns", time.monotonic_ns())
             result["error"] = e
 
+    live.status_fn = lambda: (f"FROZEN by contact detection ({a.contact_hit.joint}, {a.contact_hit.role}, "
+                              f"{abs(a.contact_hit.error)} ticks): support the arm, then Ctrl-C = torque off"
+                              if (a := result.get("arm")) is not None and a.contact_hit else None)  # fmt: skip
     th = threading.Thread(target=worker, name="safearm-sweep")
     th.start()
     live.footer = [f"TORQUE ON: {profile} sweep of {args.joint}. Ctrl-C = freeze, again = torque off."]
@@ -176,7 +179,8 @@ def main() -> None:
     elif "error" in result:
         console.print(f"[red]stopped (torque off): {result['error']}")
     elif loop and loop.frozen:
-        console.print("[yellow]FROZEN by Ctrl-C, held, then torque off; no trips")
+        console.print(f"[yellow]FROZEN by contact detection: {arm.contact_hit.detail}; held, then torque off"
+                      if arm and arm.contact_hit else "[yellow]FROZEN by Ctrl-C, held, then torque off; no trips")
     else:
         console.print("[green]sweep completed, torque off, no trips")
     if loop:

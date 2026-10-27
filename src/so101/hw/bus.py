@@ -96,6 +96,7 @@ class BusOwnership:
 class ServoBus(Protocol):
     stats: BusStats
     owner: str | None
+    last_error: dict[int, int]  # servo id -> error byte of its last successful reply
 
     def ping(self, servo_id: int) -> int | None:
         """Return the model number, or None if the servo does not answer."""
@@ -128,6 +129,7 @@ class FeetechBus(BusOwnership):
 
         super().__init__()
         self._ok = COMM_SUCCESS
+        self.last_error: dict[int, int] = {}
         self.port_name = port
         self.retries = retries
         self.stats = BusStats()
@@ -154,12 +156,19 @@ class FeetechBus(BusOwnership):
             data, comm, err = self._pkt.readTxRx(self._port, servo_id, addr, size)
             self.stats.last_latency_s = time.monotonic() - t0
             self.stats.transactions += 1
+            if comm == self._ok and len(data) != size:
+                # scservo_sdk slices the reply without checking its declared length (Feetech-Servo-SDK
+                # issue #5): a short reply would otherwise surface as a ValueError in decode_block.
+                self.stats.failures[(servo_id, f"short reply ({len(data)}/{size} bytes)")] += 1
+                continue
             if comm == self._ok:
+                self.last_error[servo_id] = err
                 for flag in error_flags(err):
                     self.stats.servo_errors[(servo_id, flag)] += 1
                 return bytes(data)
             self.stats.failures[(servo_id, self._pkt.getTxRxResult(comm))] += 1
-        raise BusError(f"id {servo_id} @{addr}+{size}: {self._pkt.getTxRxResult(comm)} after {self.retries + 1} tries")
+        raise BusError(f"id {servo_id} @{addr}+{size}: failed after {self.retries + 1} tries "
+                       f"(last: {dict(self.stats.failures)})")
 
     def write(self, owner: str, servo_id: int, name: str, value: int) -> None:
         reg, raw = check_write(name, value)
@@ -202,6 +211,7 @@ class MockBus(BusOwnership):
         self.memory = memory if memory is not None else {}
         self.stats = BusStats()
         self.write_log: list[WriteRecord] = []
+        self.last_error: dict[int, int] = {}  # tests/sim may set this to inject error bytes
 
     @classmethod
     def from_dump(cls, dump: dict) -> "MockBus":

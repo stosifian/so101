@@ -4,6 +4,7 @@
 the whole read with host monotonic time. Phase 2 calls it before and after each image.
 """
 
+import dataclasses
 import time
 from dataclasses import dataclass, field
 
@@ -32,6 +33,7 @@ class JointState:
     status: int  # bitmask
     moving: int  # 0/1
     current: int  # 6.5 mA units
+    error_byte: int = 0  # status-packet error byte of this read (hw.bus.SERVO_ERROR_BITS)
 
     @property
     def voltage_v(self) -> float:
@@ -89,7 +91,8 @@ class Arm:
         t0 = time.monotonic_ns()
         for joint, servo_id in self.joints.items():
             try:
-                states[joint] = decode_block(self.bus.read_block(servo_id, BLOCK_ADDR, BLOCK_SIZE))
+                block = self.bus.read_block(servo_id, BLOCK_ADDR, BLOCK_SIZE)
+                states[joint] = dataclasses.replace(decode_block(block), error_byte=self.bus.last_error.get(servo_id, 0))
             except BusError as e:
                 states[joint], errors[joint] = None, str(e)
         return ArmSnapshot(t0, time.monotonic_ns(), states, errors)

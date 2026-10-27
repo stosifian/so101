@@ -31,8 +31,9 @@ SCHEMA = pa.schema([
     ("current", pa.int32()),  # 6.5 mA units
     ("error", pa.string()),  # BusError text when the read failed (other columns null)
     ("goal", pa.int32()),  # Goal_Position commanded this cycle (SafeArm runs), else null
+    ("error_byte", pa.int16()),  # status-packet error byte of this read (voltage/angle/overheat/overcurrent/overload)
 ])  # fmt: skip
-STATE_FIELDS = ["position", "speed", "load", "voltage_dv", "temperature_c", "status", "moving", "current"]
+STATE_FIELDS = ["position", "speed", "load", "voltage_dv", "temperature_c", "status", "moving", "current", "error_byte"]
 
 
 def sample_rows(sample: Sample) -> list[dict]:

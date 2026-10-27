@@ -34,7 +34,9 @@ class LiveSession:
         self.viz = (RerunView(self.hub.subscribe("viz", maxlen=5000), list(voltage), run.path("telemetry.rrd"),
                               run.run_id, run.header["started_monotonic_ns"]) if viz else None)  # fmt: skip
         self._viz_all = self.viz  # kept for close(), even if the live display is dropped
-        self.footer: list[str] = []  # set by the caller each frame, e.g. SafeArm state
+        self.footer: list[str] = []  # set by the caller, e.g. what's running
+        self.status_fn = None  # optional () -> str | None, polled every frame (e.g. "FROZEN: contact ...")
+        self._status_shown = None
 
     def run_until_done(self, worker: threading.Thread, console: Console) -> bool:
         """Draw until `worker` exits. Returns True if the user pressed Ctrl-C at least once.
@@ -51,8 +53,12 @@ class LiveSession:
                         except Exception as e:  # viewer gone; keep the session alive
                             console.print(f"[yellow]Rerun display stopped: {e}")
                             self.viz = None
+                    status = self.status_fn() if self.status_fn else None
+                    if status and status != self._status_shown and not self.tui:
+                        console.print(f"[bold yellow]{status}")
+                    self._status_shown = status
                     if self.tui:
-                        self.tui.footer = list(self.footer)
+                        self.tui.footer = list(self.footer) + ([status] if status else [])
                         self.tui.update()
                         live.update(self.tui.render())
                 except KeyboardInterrupt:

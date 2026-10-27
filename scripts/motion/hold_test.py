@@ -83,6 +83,9 @@ def main() -> None:
             marks.setdefault("torque_off_ns", time.monotonic_ns())
             result["error"] = e
 
+    live.status_fn = lambda: (f"FROZEN by contact detection ({a.contact_hit.joint}, {a.contact_hit.role}, "
+                              f"{abs(a.contact_hit.error)} ticks): support the arm, then Ctrl-C = torque off"
+                              if (a := result.get("arm")) is not None and a.contact_hit else None)  # fmt: skip
     th = threading.Thread(target=worker, name="safearm-hold")
     th.start()
     live.footer = ["TORQUE ON (hold, no goals). Ctrl-C = freeze, again = torque off. Hand near the arm."]
@@ -136,7 +139,7 @@ def main() -> None:
     elif "error" in result:
         console.print(f"[red]error (torque turned off on exit): {result['error']!r}")
     else:
-        console.print("[yellow]FROZEN by Ctrl-C, held, then torque off; no trips" if loop and loop.frozen else "[green]enable → hold → torque off completed, no trips" + (" (stopped early)" if interrupted else ""))
+        console.print((f"[yellow]FROZEN by contact detection: {arm.contact_hit.detail}; held, then torque off" if arm and arm.contact_hit else "[yellow]FROZEN by Ctrl-C, held, then torque off; no trips") if loop and loop.frozen else "[green]enable → hold → torque off completed, no trips" + (" (stopped early)" if interrupted else ""))
     if loop:
         console.print(f"hold loop: {loop.cycles} cycles in {loop.duration_s:.1f} s, overruns {loop.overruns}, "
                       f"skipped {loop.skipped_slots}")  # fmt: skip
