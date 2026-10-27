@@ -20,6 +20,7 @@ Writes data/raw/<run_id>/ (kind move) + safety_events.json + single_move.json.
 """
 
 import argparse
+import signal
 import json
 import sys
 import threading
@@ -131,6 +132,7 @@ def main() -> None:
     th.start()
     live.footer = [f"TORQUE ON: moving {args.joint} {args.amplitude:+d} ticks @ {args.speed:g} ticks/s. Ctrl-C = freeze, again = torque off."]
     interrupted = live.run_until_done(th, console)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # run over, torque off: a late Ctrl-C mustn't break the summary
     summary = live.close()
     bus.close()
 

@@ -20,6 +20,7 @@ Writes data/raw/<run_id>/ (kind shadow) + safety_events.json + shadow_check.json
 """
 
 import argparse
+import signal
 import json
 import sys
 import threading
@@ -86,6 +87,7 @@ def main() -> None:
     th.start()
     live.footer = ["SHADOW MODE: torque off, all writes blocked (2 guards)"]
     interrupted = live.run_until_done(th, console)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # run over, torque off: a late Ctrl-C mustn't break the summary
     summary = live.close()
     bus.close()
 

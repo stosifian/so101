@@ -14,6 +14,7 @@ Writes data/raw/<run_id>/ (kind hold) + safety_events.json + hold_test.json.
 """
 
 import argparse
+import signal
 import json
 import sys
 import threading
@@ -90,6 +91,7 @@ def main() -> None:
     th.start()
     live.footer = ["TORQUE ON (hold, no goals). Ctrl-C = freeze, again = torque off. Hand near the arm."]
     interrupted = live.run_until_done(th, console)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # run over, torque off: a late Ctrl-C mustn't break the summary
     summary = live.close()
     bus.close()
 
