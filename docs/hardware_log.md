@@ -73,7 +73,7 @@ q_rad = (ticks − zero) × 2π/4096, all signs +1, model = MuJoCo Menagerie SO-
 | Joint | zero_ticks | How |
 |---|---|---|
 | shoulder_pan | 2213 | arm straight forward |
-| shoulder_lift | 2222 | upper arm vertical (by eye) |
+| shoulder_lift | **2210** | upper arm vertical by eye (2222), refined −12 ticks by table touches |
 | elbow_flex | 1897 | forearm ⟂ upper arm, then nudged −6° live |
 | wrist_flex | 2148 | in line with forearm |
 | wrist_roll | 2156 | matched to the model ghost, nudged +1° |
@@ -87,6 +87,14 @@ Evidence: references `20261027-095547`, nudges `20261027-101247`, validation `20
 - **Wrist vs table during shoulder_lift (step 6, run 20261026-162655_sweep_follower):** lifting the shoulder from rest pose with the elbow folded (≈2857) swings the wrist down into the table. Contact from lift ≈ 1398 (≈ 28° above rest): the elbow, which had no new goal, was pushed back 2857 → 2836 and wrist_flex −5 ticks. Lift's error grew to 35–57 ticks while ramping (normal ≈ 20). Holding at 1524 going up it sat 20 ticks short at 16 % load, versus −1 tick / 0 % at the same position going down. It peaked at 1626 (goal 1674, 48 short) at **39 % load for ~3 s, below the 50 % load trip**, so nothing tripped. Contact released on the way down near 1600. Gentle at first, sustained at the end; the load trip alone can't catch it.
 
 - **Contact detection hardware test (step 6a, run 20261026-170706_hold_follower):** hold with all joints idle; a hand push on shoulder_pan froze the arm when pan was 14 ticks from its held goal for 0.3 s (idle limit 10). Pushed further after the freeze: up to 29 ticks / 15.6 % load, then returned and held.
+
+## Table touches (step 8c, fixed-jaw tip on the table; expected height = base underside + 0.75 mm tip radius)
+| Run | Mount | n | Height error vs base plane | Apparent tilt |
+|-----|-------|---|----------------------------|---------------|
+| `20261027-122345_model_check_follower` | edge (rocking) | 5 | −3.6…+11.0 mm (4.2 ± 4.9) | 2.7° |
+| `20261027-124107_model_check_follower` | corner | 5 | −1.2…+12.6 mm (6.4 ± 4.5) | 1.7° |
+| `20261027-124750_model_check_follower` | corner | 8 + baseref | −0.2…+8.5 mm (3.9 ± 2.5) | 1.1° |
+The remaining error grows with reach (+20 mm per m) and is explained by a **+1.03° shoulder_lift zero error**: correcting it (zero 2222 → 2210) gives 1.5 mm RMS (leave-one-out 1.8, max 3.7 mm). Adding elbow/wrist_flex corrections predicts held-out touches worse (overfit). At table level a ~1° lift error and a ~1° base tilt look alike; Phase 2 separates them. Remaining scatter (~1.5–2.5 mm) matches the error budget (encoder resolution, play beyond the encoders, hand touching, other by-eye zeros, CAD tolerances, plank flatness).
 
 ## Collision model (step 8b, `so101.kinematics.collision`, MuJoCo geometry only)
 Table plane = base underside (z = −2.4 mm), camera mount included, collision shapes = the Menagerie model's boxes + gripper shapes.
@@ -115,4 +123,5 @@ Table plane = base underside (z = −2.4 mm), camera mount included, collision s
 
 ## Physical setup
 - Base clamping: **not rigid enough (2026-10-26):** during the step 6a push test (run 20261026-170706_hold_follower) a firm hand push on the arm shifted the whole arm on the table (the clamp slipped). Joint ticks are unaffected (measured between parts of the arm), but anything in the table/world frame is: calibration, the table plane, Phase 2 metrology. The step 6 table contact (39 % for ~3 s) may also have nudged it. Fix before steps 7–8.
+- **2026-10-27, base rocking found and fixed:** both clamps on the open-table side pressed the plate down along that edge only, leaving clearance at the front, so the base sat slightly tilted and could rock (user). First table touches (run `20261027-122345_model_check_follower`, edge mount): height error −3.6 → +11.0 mm with reach, apparent tilt 2.7°. **Moved to a table corner, one clamp on each edge.** New `baseref` recorded at the corner mount (run `20261027-124750_model_check_follower`).
 - Photos:

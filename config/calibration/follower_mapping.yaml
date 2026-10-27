@@ -10,10 +10,12 @@
 # deg; gripper closed ~-11 deg vs model -10), so the plausibility check uses model range UNION this arm's
 # measured range (measured_range_ticks, from the 2026-10-26 hand sweep).
 model: models/so101_menagerie/scene.xml
-status: verified_by_eye   # 3 mixed validation poses lined up (run 20261027-103553_model_check_follower)
+status: verified_by_eye   # 3 mixed validation poses lined up (run 20261027-103553_model_check_follower);
+                          # lift refined by 9 table touches (run 20261027-124750_model_check_follower, corner mount):
+                          # touch height error 4.4 -> 1.5 mm RMS (leave-one-out 1.8, max 3.7 mm)
 joints:
   shoulder_pan:  {sign: 1, zero_ticks: 2213}   # arm straight forward       (hypothesis 2187, +2.3 deg)
-  shoulder_lift: {sign: 1, zero_ticks: 2222}   # upper arm vertical          (hypothesis 2106, +10.2 deg)
+  shoulder_lift: {sign: 1, zero_ticks: 2210}   # upper arm vertical by eye = 2222, refined -12 ticks (+1.03 deg) by table touches (D14)
   elbow_flex:    {sign: 1, zero_ticks: 1897}   # forearm ⟂ upper arm; ref 1829, nudged -6.0 deg (hypothesis 1822)
   wrist_flex:    {sign: 1, zero_ticks: 2148}   # wrist in line with forearm  (hypothesis 1986, +14.2 deg)
   wrist_roll:    {sign: 1, zero_ticks: 2156}   # matched to the ghost; ref 2167, nudged +1.0 deg (hypothesis 2048)
