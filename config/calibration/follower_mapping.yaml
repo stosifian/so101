@@ -1,14 +1,17 @@
 # Tick -> model joint angle (step 7):  q_rad = sign * (ticks - zero_ticks) * 2*pi / 4096
-# Model: models/so101_menagerie (joint zero = LeRobot "middle of range" convention).
-# status: hypothesis until the pose checks pass (then: verified, with run IDs).
+# Model: models/so101_menagerie (joint zero = LeRobot "middle of range" pose).
+# status: measured by eye (each zero = reading with that joint held at its model-0 reference, ~±3-5 deg)
+#   reference poses: run 20261027-095547_model_check_follower (2nd zero_lift / zero_elbow used; 1st were
+#   mis-records in rest pose). Signs +1: directions confirmed by eye in the live viewer.
+# Previous values (2026-10-27 hypothesis = midpoints of the 2026-10-26 hand sweep) kept in comments.
+# Known: with these zeros the rest pose maps lift to ~-107 deg and wrist_flex's swept min to ~-105 deg,
+# ~7-10 deg beyond the model's ranges (by-eye reference error and/or model ranges vs this unit's stops).
 model: models/so101_menagerie/scene.xml
-status: hypothesis
-joints:            # sign, zero_ticks   (hypothesis = midpoint of the 2026-10-26 hand sweep, sign +1)
-  shoulder_pan:  {sign: 1, zero_ticks: 2187}   # swept 919..3454
-  shoulder_lift: {sign: 1, zero_ticks: 2106}   # swept 1003..3208
-  elbow_flex:    {sign: 1, zero_ticks: 1822}   # swept 715..2928
-  wrist_flex:    {sign: 1, zero_ticks: 1986}   # swept 946..3025
-  wrist_roll:    {sign: 1, zero_ticks: 2048}   # LeRobot treats it as full-turn: mid of 0..4095
-  gripper:       {sign: 1, zero_ticks: 2032}   # closed (swept min) = 0 rad; model range -10..100 deg
-# Alternative to test if poses disagree: zero_ticks = 2047 for every joint (LeRobot's half-turn
-# homing puts the calibration "middle" pose at 2047, and Seeed wrote homing offsets at the factory).
+status: measured_by_eye
+joints:
+  shoulder_pan:  {sign: 1, zero_ticks: 2213}   # arm straight forward       (hypothesis 2187, +2.3 deg)
+  shoulder_lift: {sign: 1, zero_ticks: 2222}   # upper arm vertical          (hypothesis 2106, +10.2 deg)
+  elbow_flex:    {sign: 1, zero_ticks: 1829}   # forearm ⟂ upper arm         (hypothesis 1822, +0.6 deg)
+  wrist_flex:    {sign: 1, zero_ticks: 2148}   # wrist in line with forearm  (hypothesis 1986, +14.2 deg)
+  wrist_roll:    {sign: 1, zero_ticks: 2167}   # matched to the ghost        (hypothesis 2048, +10.5 deg)
+  gripper:       {sign: 1, zero_ticks: 2047}   # jaws just touching          (hypothesis 2032, +1.3 deg)
