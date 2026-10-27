@@ -14,7 +14,7 @@
 | 7 | Calibration: ticks → MuJoCo Menagerie model mapping | done 2026-10-27 (by eye) |
 | 8 | Parameterized FK + MuJoCo collision model + table plane (base underside) validated by touches | done 2026-10-27 |
 | 9 | IK + collision-checked motion + Cartesian demo (wrist_roll limit kept; wide sweeps deferred) | done 2026-10-27 |
-| 10 | Endurance/thermal loop, gripper squeeze (current scale), manifest | planned |
+| 10 | Endurance/thermal loop, gripper squeeze (current scale), manifest | done 2026-10-27 |
 | 11 | Acceptance write-up, go/no-go | planned |
 
 ## Phase 2 — camera metrology (spec §5–§9)
@@ -34,6 +34,7 @@
 - If a copied piece limits accuracy (e.g. sync-read timing skew across joints, clamping behaviour), replace it behind its interface (`ServoBus`/`Arm`/`SafeArm`/`Sensor`) and record why in the decision log.
 
 **To do in Phase 2:**
+- **Thermal drift needs real heating:** the Phase 1 endurance loop (step 10c) held repeatability within ±3 ticks for 15 min but warmed the servos only ≤ 1 °C (low loads). For the thermal-drift run, load the joints (e.g. hold the arm extended against gravity at ~20–30 % load, or longer/faster cycles) and track the reference pose as temperature rises; the 10c run is the cold baseline.
 - **Measure structural ring-down** (camera or IMU): the end effector wobbles after stops while joint encoders already read steady (step 6). Set `wait_until_settled(dwell_s=…)` from the measured ring-down; 0.5 s is a placeholder. **Wobble depends on the moving joint and the pose** (user, step 6c: hardly any on pan with the arm folded, noticeable on lift with the arm extended; lever arm and inertia), so measure the worst case (extended arm, lift/elbow moves) or make the dwell depend on reach.
 - **Base reference check (stock clamps kept, user decision 2026-10-26):** a firm hand push shifted the arm in the stock clamps (step 6a). Phase 2 applies no such forces, but an unnoticed shift (bump, cable tug, contact) would silently invalidate calibration and the table plane. Mark the base outline on the table, and at the start of every session and after any contact re-touch the reference point recorded at Phase 1 step 8. If it differs, re-clamp and re-measure before trusting world-frame numbers.
 - gphoto2 ↔ A7 IV validation (50 consecutive captures). Sony Remote SDK is the fallback behind the same `Sensor` interface.

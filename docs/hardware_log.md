@@ -115,6 +115,16 @@ Run `20261027-141349_squeeze_follower`, soft object between the jaws (contact fr
 - Gripper stiffness ≈ 0.82 %/tick, the same spring as pan/elbow (0.85). 50 % cap never reached, no trips.
 - The closed gripper (≈ 2048) sits **below its own soft limit (2082)**: after any move inside the range it can't return fully closed (outside-limits rule). Consider lowering the gripper's lower limit to ~2040 if full closing is needed (config change).
 
+## Endurance / thermal loop (step 10c, `endurance_loop.py`, 15 min, no TUI)
+Run `20261027-142432_endurance_follower`: reference pose pan 2188, lift 1816, elbow 1978, wrist_flex 3011 (arm near vertical, low gravity load); each ~30 s cycle = approach the reference from below + settle (manifest entry), then min-jerk pan ±250 / lift ±150 / elbow ±150 at 150 t/s. 30 cycles, 30/30 settled, no trips/freezes, 0 bus failures in 96k samples.
+| Joint | Error at the reference over 30 visits (ticks) | Std | Trend | Temperature |
+|---|---|---|---|---|
+| shoulder_pan | −2…−1 | 0.40 | −0.02 ticks/min | 34 → 35 °C |
+| shoulder_lift | −1…+1 | 0.85 | +0.02 | 33 → 33 |
+| elbow_flex | −1…+3 | 0.65 | −0.06 | 33 → 34 |
+| wrist_flex | −1…0 | 0.40 | +0.05 | 35 → 35 |
+**Same-direction repeatability ≤ ±3 ticks (≈ 0.26°), std ≤ 0.85 ticks, no drift over 15 min.** But this loop barely heats the servos (≤ +1 °C, median load 0–2.4 %), so it's a repeatability baseline at stable temperature, not yet a thermal-drift measurement.
+
 ## Collision model (step 8b, `so101.kinematics.collision`, MuJoCo geometry only)
 Table plane = base underside (z = −2.4 mm), camera mount included, collision shapes = the Menagerie model's boxes + gripper shapes.
 | Pose (real run) | Closest to table | Result |
