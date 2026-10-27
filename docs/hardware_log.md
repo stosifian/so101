@@ -102,6 +102,19 @@ The remaining error grows with reach (+20 mm per m) and is explained by a **+1.0
 | `20261027-135238_cartesian_follower` | 80 mm along +x at tip ≈ (269, 10, 330) mm, out and back | ≤ 0.6 mm (no clamps) | lag along line ≤ 7.1 mm; **sag −8.4 mm vertical**; 1.0 mm sideways | max 8.5 mm, RMS 4.7 mm | far end 7.3 mm, return 3.6 mm |
 The plan is exact; the error is the P-only servos: lift/wrist_flex up to 17–22 ticks behind goal holding against gravity (step 6 "error = load ÷ stiffness"), plus following lag. Phase 3's stiffness-compensation layer targets exactly this. 147 overruns in 11 s (TUI + ~1 ms/cycle of collision checks), no trips, no freezes, 0 bus failures.
 
+## Gripper squeeze + current scale (step 10b, `gripper_squeeze.py`, torque cap 50 %, arm resting)
+Run `20261027-141349_squeeze_follower`, soft object between the jaws (contact from goal ≈ 2220):
+| Goal | Error | Load | Current (units / ≈ mA @ 6.5) |
+|---|---|---|---|
+| 2660…2260 (free) | +1…+4 | 0–4 % | 0–1 |
+| 2220 | +10 | 8.8 % | 4 / 26 |
+| 2180 | +18 | 15.2 % | 11 / 72 |
+| 2140 | +32 | 26.4 % | 34 / 220 |
+| 2100 | +46 | 37.6 % | 67 / 436 |
+- **`Present_Current` scale: plausible.** It reads ≈ 0 below ~10 % load and rises properly above: 26→38 % gives ≈ 2.9 units/% ≈ 19 mA/% (rough stall estimate ~27 mA/%). The earlier "8× too low" doubt (step 5b) came from ≤ 8 % loads. **Rule: trust current above ~10 % load; below that use load.**
+- Gripper stiffness ≈ 0.82 %/tick, the same spring as pan/elbow (0.85). 50 % cap never reached, no trips.
+- The closed gripper (≈ 2048) sits **below its own soft limit (2082)**: after any move inside the range it can't return fully closed (outside-limits rule). Consider lowering the gripper's lower limit to ~2040 if full closing is needed (config change).
+
 ## Collision model (step 8b, `so101.kinematics.collision`, MuJoCo geometry only)
 Table plane = base underside (z = −2.4 mm), camera mount included, collision shapes = the Menagerie model's boxes + gripper shapes.
 | Pose (real run) | Closest to table | Result |
