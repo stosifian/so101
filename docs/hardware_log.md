@@ -56,6 +56,11 @@ Error = position − goal; ↑ = approached from below. Hysteresis = err↓ − 
 | shoulder_lift | 20261027-092126_sweep_follower | anchored 4×150, 1073→1673 (53°), **elbow unfolded ≈1036, wrist_flex ≈1111 (gripper cleared by hand)** | −17…−23 | −3…−5 | **14–20 ticks (1.2–1.8°)**, largest of any joint | ↑ 14–19 %, ↓ 3–5 %: gravity ≈ midpoint ≈ 10–11 %, friction ≈ ±6–7 %; flat over this range | 0 | 17 % (stall 129 ms) | no contact (user confirmed); first clean lift gravity profile |
 | shoulder_lift | 20261027-092438_sweep_follower | anchored 6×150, 1073→1973 (79°), elbow fully unfolded ≈728 | −11…−21 | −2…−5 | 12–18 ticks | ↑ 14–18 % (to 1673) → 12.8 % (1823) → 9.6 % (1973); ↓ ≈3 %. Gravity (midpoint) falls toward vertical (est. lift ≈ 2200–2300 in this pose); friction ≈ ±6–7 % | 0 | 14 % (stall 173 ms) | no contact; 1 failed read on ID 1 (first outside IDs 4–6); 17 skipped slots |
 
+## Settle + repeatability (step 6c, `settle_check.py`, min-jerk 150 t/s peak, 40-tick overshoot approach)
+| Joint | Run | Targets | Encoder settle | Error from below / above | Hysteresis | Same-direction spread (n=2) |
+|-------|-----|---------|----------------|--------------------------|------------|-----------------------------|
+| shoulder_pan | 20261027-093309_settle_follower | 2057, 2207, 2357 | ≈ 0.21 s (one 0.42 s) | −1…−3 / +1…+3 | 3–6 ticks | **0 ticks in 5 of 6, 2 in one** |
+
 ## Collisions / contact
 - **wrist_roll vs shoulder (step 6, run 20261026-160843_sweep_follower):** with the arm in rest pose (elbow 2927, wrist_flex 2853), rolling the wrist up to ~2645–2664 brings the gripper base against the shoulder (seen by the user). Load during the approach (~6.4 %) looked the same as normal 150 ticks/s motion, so **gentle contact is not detectable from load at these speeds; it has to be prevented by limits or geometry.** Pose-dependent: the per-joint hand sweep could not find it. **Action: wrist_roll max lowered 3438 → 2550 in config (≈8° before contact). That's a rest-pose limit applied in every pose for now; FK collision checking (steps 8–9) should relax it where the pose allows.**
 
