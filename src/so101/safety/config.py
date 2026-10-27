@@ -18,6 +18,18 @@ def _threshold(section: dict, key: str) -> int | None:
     return int(v)
 
 
+def _margin(section: dict, key: str) -> float | None:
+    """A collision margin in metres: a number >= 0, or explicit null (= check disabled). Key must be present."""
+    if key not in section:
+        raise ValueError(f"safety.{key} missing (use null to disable the check)")
+    v = section[key]
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0 or v > 0.1:
+        raise ValueError(f"safety.{key} = {v!r}: must be 0..0.1 m, or null to disable")
+    return float(v)
+
+
 @dataclass(frozen=True)
 class SafetyConfig:
     limits: dict[str, tuple[int, int]]  # joint -> (min, max) ticks, software limits
@@ -37,6 +49,10 @@ class SafetyConfig:
     contact_err_holding: int | None = None
     contact_drift_idle: int | None = None
     contact_window_s: float = 0.3
+    # collision model (step 8b); None = check disabled (YAML null)
+    collision_table_margin_m: float | None = None
+    collision_self_margin_m: float | None = None
+    collision_include_camera_mount: bool = True
 
     def disabled_contact_checks(self) -> list[str]:
         return [n for n in ("contact_err_moving", "contact_err_holding", "contact_drift_idle") if getattr(self, n) is None]
@@ -70,6 +86,9 @@ class SafetyConfig:
             contact_err_holding=_threshold(s, "contact_err_holding_ticks"),
             contact_drift_idle=_threshold(s, "contact_drift_idle_ticks"),
             contact_window_s=float(s["contact_window_s"]),
+            collision_table_margin_m=_margin(s, "collision_table_margin_m"),
+            collision_self_margin_m=_margin(s, "collision_self_margin_m"),
+            collision_include_camera_mount=bool(s["collision_include_camera_mount"]),
         )
         if not 1 <= out.speed_cap <= 1000:
             raise ValueError(f"speed_cap {out.speed_cap} outside 1..1000 ticks/s (raise the bound deliberately)")

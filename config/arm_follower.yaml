@@ -46,3 +46,8 @@ safety:
   contact_err_holding_ticks: 25  # commanded joint holding its goal (normal <= 14, elbow gravity)
   contact_drift_idle_ticks: 10   # joint not commanded since enable (normal <= 3)
   contact_window_s: 0.3
+  # Collision model (step 8b, approved 2026-10-27): MuJoCo geometry check on joint angles (no physics).
+  # Table = base underside plane (z = -2.4 mm). Margins in metres; null disables that check.
+  collision_table_margin_m: 0.0      # penetration only until 8c measures the calibration error (rest pose sits ~4 mm above)
+  collision_self_margin_m: 0.005     # WARN-ONLY: folded poses near rest are within model + calibration uncertainty
+  collision_include_camera_mount: true

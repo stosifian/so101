@@ -88,6 +88,17 @@ Evidence: references `20261027-095547`, nudges `20261027-101247`, validation `20
 
 - **Contact detection hardware test (step 6a, run 20261026-170706_hold_follower):** hold with all joints idle; a hand push on shoulder_pan froze the arm when pan was 14 ticks from its held goal for 0.3 s (idle limit 10). Pushed further after the freeze: up to 29 ticks / 15.6 % load, then returned and held.
 
+## Collision model (step 8b, `so101.kinematics.collision`, MuJoCo geometry only)
+Table plane = base underside (z = −2.4 mm), camera mount included, collision shapes = the Menagerie model's boxes + gripper shapes.
+| Pose (real run) | Closest to table | Result |
+|---|---|---|
+| wrist → table, lift onset 1398 (`20261026-162655`) | −2.2 mm | flagged |
+| wrist → table, peak 1626 (same run) | −19.4 mm | flagged |
+| gripper → table, lift 1344 (`20261027-091714`) | −15.2 mm | flagged |
+| rest yesterday / today | +3.9 / +26.8 mm | clear |
+| normal sweeps (lift to 79°, elbow, wrist_flex, pan, gripper) | ≥ +26.8 mm | clear |
+**Known blind spot:** gripper base vs shoulder in the folded rest pose (wrist_roll ≈ 2645, real contact): the model puts them 13–14 mm apart. Folded-pose clearances (~1 cm) are within model + by-eye-calibration uncertainty, so self-collision is **warn-only**; the conservative wrist_roll limit (2550), contact detection and the operator cover it. 0.5 ms per check.
+
 ## Telemetry quirks
 - **V/°C ADC glitches on IDs 4–6 (both arms):** ~0.2–1.6 % of samples read low voltage / high temperature for a single sample. The value really is in the servo register (block and single-register reads agree), so it's servo-side. Debounce any trip on V/°C. Positions have shown no spikes.
 - **Status bit 0 (voltage) follows the ADC glitches:** the leader gripper sets Status=0x01 on exactly the samples where its voltage glitches to 3.6–3.9 V, below the 4.0 V `Min_Voltage_Limit` that every servo has (27 of ~264k samples across all step 3 runs; never on the follower, whose glitches only reach ~10.4 V). The voltage/overheat Status and error-byte bits are therefore debounced in SafeArm; overload/overcurrent/angle bits trip at once.
