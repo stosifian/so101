@@ -35,7 +35,9 @@ class LiveSession:
                               run.run_id, run.header["started_monotonic_ns"]) if viz else None)  # fmt: skip
         self._viz_all = self.viz  # kept for close(), even if the live display is dropped
         self.footer: list[str] = []  # set by the caller, e.g. what's running
-        self.status_fn = None  # optional () -> str | None, polled every frame (e.g. "FROZEN: contact ...")
+        self.status_fn = None  # optional () -> str | None, polled every frame: DISPLAY ONLY
+        self.ctrl_c_stops_fn = None  # optional () -> bool: True when the arm is already holding (frozen / hold-at-end),
+        # so a single Ctrl-C should turn torque off instead of freezing
         self._status_shown = None
 
     def run_until_done(self, worker: threading.Thread, console: Console) -> bool:
@@ -54,8 +56,6 @@ class LiveSession:
                             console.print(f"[yellow]Rerun display stopped: {e}")
                             self.viz = None
                     status = self.status_fn() if self.status_fn else None
-                    if status:
-                        self.freeze.set()  # already frozen (e.g. by contact): the next Ctrl-C means torque off
                     if status and status != self._status_shown and not self.tui:
                         console.print(f"[bold yellow]{status}")
                     self._status_shown = status
@@ -65,7 +65,8 @@ class LiveSession:
                         live.update(self.tui.render())
                 except KeyboardInterrupt:
                     interrupts += 1
-                    if self.freeze_first and not self.freeze.is_set():
+                    already_holding = bool(self.ctrl_c_stops_fn and self.ctrl_c_stops_fn())
+                    if self.freeze_first and not self.freeze.is_set() and not already_holding:
                         self.freeze.set()
                         self.footer = ["FROZEN: holding position, torque ON. Support the arm, then Ctrl-C again = torque off."]
                         if not self.tui:

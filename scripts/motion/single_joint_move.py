@@ -131,6 +131,7 @@ def main() -> None:
     live.status_fn = lambda: (f"FROZEN by contact detection ({a.contact_hit.joint}, {a.contact_hit.role}, "
                               f"{abs(a.contact_hit.error)} ticks): support the arm, then Ctrl-C = torque off"
                               if (a := result.get("arm")) is not None and a.contact_hit else None)  # fmt: skip
+    live.ctrl_c_stops_fn = lambda: bool(((a := result.get("arm")) is not None and a.frozen) or result.get("holding_at_end"))
     th = threading.Thread(target=worker, name="safearm-move")
     th.start()
     live.footer = [f"TORQUE ON: moving {args.joint} {args.amplitude:+d} ticks @ {args.speed:g} ticks/s. Ctrl-C = freeze, again = torque off."]

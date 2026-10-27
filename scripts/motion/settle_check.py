@@ -123,6 +123,7 @@ def main() -> None:
         return None
 
     live.status_fn = status
+    live.ctrl_c_stops_fn = lambda: bool(((a := result.get("arm")) is not None and a.frozen) or result.get("holding_at_end"))
     th = threading.Thread(target=worker, name="safearm-settle")
     th.start()
     live.footer = [f"TORQUE ON: settle check of {args.joint}. Ctrl-C = freeze, again = torque off."]

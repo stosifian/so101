@@ -92,6 +92,7 @@ def test_after_a_contact_freeze_first_ctrl_c_turns_torque_off(tmp_path):
     run = Run("test", "follower", root=tmp_path)
     live = LiveSession(run, {"follower": (11.0, 13.0)}, tui=False, viz=False)
     live.status_fn = lambda: "FROZEN by contact detection (test)"
+    live.ctrl_c_stops_fn = lambda: True  # the arm is already holding
 
     def worker():
         live.stop.wait(5)
@@ -102,3 +103,15 @@ def test_after_a_contact_freeze_first_ctrl_c_turns_torque_off(tmp_path):
     assert live.run_until_done(th, Console(file=open("/dev/null", "w"))) is True
     live.close()
     assert live.stop.is_set()
+
+
+def test_informational_status_does_not_freeze(tmp_path):
+    """Regression (step 10b): a status line like 'PLACE the object now' must not set the freeze flag."""
+    run = Run("test", "follower", root=tmp_path)
+    live = LiveSession(run, {"follower": (11.0, 13.0)}, tui=False, viz=False)
+    live.status_fn = lambda: "PLACE a soft object between the jaws now"
+    th = threading.Thread(target=lambda: time.sleep(0.5))
+    th.start()
+    live.run_until_done(th, Console(file=open("/dev/null", "w")))
+    live.close()
+    assert not live.freeze.is_set() and not live.stop.is_set()

@@ -159,6 +159,7 @@ def main() -> None:
         return None
 
     live.status_fn = status
+    live.ctrl_c_stops_fn = lambda: bool(((a := result.get("arm")) is not None and a.frozen) or result.get("holding_at_end"))
     th = threading.Thread(target=worker, name="safearm-cartesian")
     th.start()
     live.footer = ["TORQUE ON: Cartesian line. Ctrl-C = freeze, again = torque off."]
