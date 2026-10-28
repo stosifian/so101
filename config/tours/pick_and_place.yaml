@@ -1,0 +1,25 @@
+# Pose tour: pick-and-place emulation + workspace spread (Phase 1 all-joint motion test, Phase 2 DoF check).
+# Positions: tool point (fixed-jaw tip), base frame, metres (x forward, y left, z up from the base underside).
+# approach: world direction the fingers point along (null = free). 45° down-forward is reachable across
+# x 0.20–0.30 m; straight down is not (wrist_flex limit). Tilts are radial (outward from the base).
+# All joints move together, joint-space min-jerk at `speed` peak ticks/s. Planned + checked before torque-on.
+speed: 150          # peak ticks/s (stick-slip below ~100)
+dwell_s: 3.0        # default hold at each waypoint (use --dwell-s 10 to check focus at each pose)
+waypoints:
+  - {name: ready,       pos_m: [0.25, 0.00, 0.14], approach: [0.707, 0.0, -0.707]}
+  - {name: above_pick,  pos_m: [0.25, 0.08, 0.08], approach: [0.689, 0.221, -0.707], roll: 2156, gripper: 2700}
+  - {name: pick,        pos_m: [0.25, 0.08, 0.045], approach: [0.689, 0.221, -0.707], speed: 100}
+  - {name: grasp,       gripper: 2250, dwell_s: 1.0}   # no object: closes most of the way (limit 2082)
+  - {name: lift,        pos_m: [0.25, 0.08, 0.10], approach: [0.689, 0.221, -0.707], speed: 100}
+  - {name: above_place, pos_m: [0.25, -0.08, 0.10], approach: [0.689, -0.221, -0.707]}
+  - {name: place,       pos_m: [0.25, -0.08, 0.045], approach: [0.689, -0.221, -0.707], speed: 100}
+  - {name: release,     gripper: 2700, dwell_s: 1.0}
+  - {name: retreat,     pos_m: [0.25, -0.08, 0.10], approach: [0.689, -0.221, -0.707], speed: 100}
+  - {name: far,         pos_m: [0.30, 0.00, 0.08], approach: [0.8, 0.0, -0.6]}
+  - {name: high,        pos_m: [0.22, 0.00, 0.25], approach: [1.0, 0.0, 0.0]}
+  - {name: twist,       ticks: {wrist_roll: 1700}}
+  - {name: untwist,     ticks: {wrist_roll: 2156}}
+  - {name: left_wide,   pos_m: [0.18, 0.18, 0.08]}
+  - {name: right_wide,  pos_m: [0.18, -0.18, 0.08]}
+  - {name: ready_back,  pos_m: [0.25, 0.00, 0.14], approach: [0.707, 0.0, -0.707], gripper: 2200}
+  - {name: park, start_pose: true}   # the starting pose, clamped into the software limits
