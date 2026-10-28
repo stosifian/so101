@@ -1,0 +1,58 @@
+# Phase 2 plan (camera metrology)
+
+The source of truth for Phase 2. **Update this file every time the plan changes:** edit the table and
+add a dated entry to the deviation log, with the reason. `docs/ROADMAP.md` only summarizes it.
+Spec: `so101-metrology-plan.md` §3 (Phase 2), §6–§9. Targets + generator: `so101-metrology/`.
+
+Last updated: 2026-10-28 (revision 1).
+
+## Current plan
+
+| # | Step | Done when | Status | Arm moves? | Changed vs baseline |
+|---|------|-----------|--------|------------|---------------------|
+| 0 | Setup: this plan; camera interface (gphoto2 + mock backends, behind `Sensor`); opencv + rawpy in the env | Mock camera passes tests | planned | no | camera code in `src/so101/` (D3) |
+| 1 | **Tethering:** 50 consecutive captures over gphoto2; record body + lens firmware | 50/50, no hang/disconnect; else Sony Camera Remote SDK behind the same interface | planned | no | — |
+| 2 | **Camera settings** (spec §6): M, fixed ISO + WB, MF taped, IBIS off, RAW (decoded without lens corrections), f/11, 1/60 s, EFC, save to PC, auto-review + power save off | Menus photographed; settings hash in the run header | planned | no | — |
+| 3 | **Targets + scale:** iPad ChArUco (pixel-exact, native resolution); caliper the gripper print; iPad scale via print-vs-iPad fit (multi-view, relative pose free, not assumed coplanar) or caliper jaws imaged on the screen | iPad and gripper-target scales known to ≤ 0.05 % | planned | no | iPad replaces the printed reference board (D1); caliper anchors absolute scale (D2) |
+| 4 | **Intrinsics:** ~30 iPad views at working distance (~0.5 m), focus taped, views covering the frame corners, tilt ≤ ~40° | Reprojection 0.1–0.2 px; no moiré pattern in detected-vs-reprojected corner plots; f ≈ 6840 px | planned | no | — |
+| 5 | **Rig stability:** static iPad + gripper target 1–2 h; dial-indicator depth check | Tripod/table drift ≪ 0.25 mm | planned | no | — |
+| 6 | **Dry run:** 20 poses, move → settle → snapshot → capture → snapshot (spec §7) | 0 missed captures; manifest ↔ files 1:1; stillness check never fires | planned | yes | — |
+| 7 | **Ring-down:** worst-case wobble (extended arm, lift/elbow moves) | `dwell_s` set from measurement | planned | yes | — |
+| 8 | **Repeatability + backlash:** ~30 returns, same vs opposite approach | Spread + backlash per joint | planned | yes | — |
+| 9 | **Gravity sag per joint**, with/without payload | Joint stiffnesses fitted | planned | yes | — |
+| 10 | **Accuracy grid + kinematic fit** | Residuals < 1 mm | planned | yes | — |
+| 11 | **Thermal drift:** loaded hold 1–2 h, temperatures median-filtered | Drift vs temperature | planned | yes | load the joints (ROADMAP) |
+| 12 | Write-up + Phase 3 choice | Report + decision | planned | no | — |
+
+### Error budget (sub-mm goal)
+- Intrinsics set the floor for every pose: corner quality (0.1–0.2 px, no moiré) matters more than iPad size.
+- Gripper position relative to the iPad: depth error ≈ (*s*_grip − *s*_iPad) × Z → 0.05 % mismatch = 0.25 mm at 0.5 m.
+- Common scale error *s*: error ≈ *s* × distance from the iPad → ≤ 0.15 mm over 300 mm at 0.05 %.
+- Relative tests (repeatability, backlash, sag, drift) are insensitive to scale (< 0.02 mm at *s* = 0.2 %).
+
+### Hardware facts
+- Camera: Sony A7 IV + SEL35F18F (no lens stabilization; IBIS off is enough). f ≈ 6840 px; ~73 µm per camera pixel at 0.5 m.
+- iPad Air M1: 2360 × 1640, 264 ppi (96.2 µm pitch, nominal, rounded by Apple), LCD (no PWM flicker), screen ≈ 227 × 158 mm.
+  At 0.5 m one display pixel ≈ 1.3 camera pixels → moiré risk; f/11 diffraction blur (~3 px) helps.
+
+### Open items
+- Body + lens firmware versions (MENU → Setup → Setup Option → Version).
+- Gripper target: spec §8 prefers a ~60 mm ChArUco (AprilTag outer corners shift under blur); `so101-metrology/` has AprilTag grids (20 mm). Decide before step 3.
+- `gen_targets.py` rewrites `targets_spec.json` with `measured_*` = null: keep measured scales in a separate file.
+- iPad as world reference: dedicated for the campaign, fixed to the table, auto-lock off, on power, fixed brightness matched to the room.
+- Cardstock changes size with humidity (~0.1 %): measure scale on the day, or mount on glass/aluminum.
+
+## Baseline (revision 1, 2026-10-28)
+Spec §3 Phase 2 + `docs/ROADMAP.md` "To do in Phase 2": instrument characterization (intrinsics from iPad,
+targets caliper-measured, iPad↔board cross-check, mount stability, depth check vs dial indicator) →
+repeatability/backlash → accuracy grid → per-joint sag → dynamics → thermal drift. Printed (or aluminum)
+reference ChArUco board on the table defines the world frame.
+
+## Deviation log
+Newest last. Each entry: what changed, why, evidence.
+
+| # | Date | Change | Why | Evidence |
+|---|------|--------|-----|----------|
+| D1 | 2026-10-28 | The iPad's on-screen ChArUco is both the intrinsics target and the world reference; the printed reference board is dropped (user) | Flat rigid glass, no humidity change, pattern set in software; removes the board↔gripper scale chain's third member | Discussion 2026-10-28; error budget above |
+| D2 | 2026-10-28 | A caliper anchors absolute scale (≤ 0.05 %); the iPad print fit alone gives only the printer's x/y ratio | Apple's 264 ppi is rounded (~0.1–0.3 %) → up to ~0.6 mm error on the accuracy grid | Error budget above |
+| D3 | 2026-10-28 | Camera code lives in `src/so101/` behind the `Sensor` interface, not the spec §10 `so101_metrology/` layout | One package; Phase 1 interfaces (`Arm`, `SafeArm`, manifest) are reused | CLAUDE.md conventions |

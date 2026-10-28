@@ -19,6 +19,17 @@
 
 ## Phase 2 — camera metrology (spec §5–§9)
 
+**Plan, status and deviation log: [`docs/phase-2-plan.md`](phase-2-plan.md)** (source of truth; updated on every change).
+Key decision (D1, 2026-10-28): the iPad's on-screen ChArUco is both the intrinsics target and the world reference; a caliper anchors absolute scale (D2).
+
+| # | Step | Status |
+|---|------|--------|
+| 0–2 | Camera interface, gphoto2 tethering (50 captures), settings | planned |
+| 3–5 | Target scales, intrinsics (iPad), rig stability | planned |
+| 6–11 | Dry run, ring-down, repeatability/backlash, sag, accuracy grid, thermal drift | planned |
+| 12 | Write-up + Phase 3 choice | planned |
+
+
 **Phase 1 must already provide:**
 - `motion.wait_until_settled()` that uses both a position tolerance and the STS3215 `Moving` register, and takes an `approach_dir` (for backlash).
 - `Arm.snapshot()`: ticks/load/temp/voltage for all joints, monotonic timestamp (before/after each image).
