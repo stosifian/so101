@@ -7,8 +7,9 @@
 
 Does not touch the arm. Nothing may move between captures (camera, tripod, iPad, table).
 ChArUco corners are matched by ID, so a partly hidden board still works (only corners seen in both images count).
-Per image vs image 0: mean shift (dx, dy) = whole-scene motion (tripod/iPad/table), and the residual RMS after
-removing that shift = corner-detection noise + any rotation/flex. Writes stability.json into the run directory.
+Per image vs image 0: mean shift (dx, dy) = whole-scene motion (tripod/iPad/table); a similarity fit splits off
+in-plane rotation (arcsec; camera roll on its head shows here) and scale (ppm; distance change); the residual
+after the similarity fit = corner-detection noise. Writes stability.json into the run directory.
 """
 
 import argparse
@@ -47,22 +48,26 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
     if pts[0] is None:
         sys.exit(f"no board found in {files[0].name}")
     rows = []
-    t = Table(title=f"corner drift vs {files[0].name} (px; 1 px ≈ 73 µm at 0.5 m, 56 µm at 0.38 m)", title_justify="left")
-    for col in ["image", "corners", "dx", "dy", "|shift|", "residual RMS", "residual max"]:
+    t = Table(title=f"corner drift vs {files[0].name} (px; 1 px ≈ 0.14 mm × distance in m)", title_justify="left")
+    for col in ["image", "corners", "dx", "dy", "|shift|", "rot ″", "scale ppm", "residual RMS", "residual max"]:
         t.add_column(col, justify="right")
     for f, p in zip(files, pts):
         if p is None:
             rows.append({"image": f.name, "found": False})
-            t.add_row(f.name, "[red]not found", "", "", "", "", "")
+            t.add_row(f.name, "[red]not found", "", "", "", "", "", "", "")
             continue
         ids = sorted(set(p) & set(pts[0]))
         d = np.array([p[i] - pts[0][i] for i in ids])
         shift = d.mean(axis=0)
-        res = np.linalg.norm(d - shift, axis=1)
+        a = np.array([pts[0][i] for i in ids])
+        M, _ = cv2.estimateAffinePartial2D(a, a + d, method=cv2.LMEDS)  # rotation + scale + shift
+        rot_as = float(np.degrees(np.arctan2(M[1, 0], M[0, 0])) * 3600)
+        scale_ppm = float((np.hypot(M[0, 0], M[1, 0]) - 1) * 1e6)
+        res = np.linalg.norm(a + d - (a @ M[:, :2].T + M[:, 2]), axis=1)
         r = {"image": f.name, "found": True, "n_common": len(ids), "dx": float(shift[0]), "dy": float(shift[1]),
-             "shift": float(np.hypot(*shift)), "residual_rms": float(np.sqrt((res**2).mean())), "residual_max": float(res.max())}  # fmt: skip
+             "shift": float(np.hypot(*shift)), "rot_arcsec": rot_as, "scale_ppm": scale_ppm, "residual_rms": float(np.sqrt((res**2).mean())), "residual_max": float(res.max())}  # fmt: skip
         rows.append(r)
-        t.add_row(f.name, str(len(ids)), f"{r['dx']:+.3f}", f"{r['dy']:+.3f}", f"{r['shift']:.3f}", f"{r['residual_rms']:.3f}", f"{r['residual_max']:.3f}")
+        t.add_row(f.name, str(len(ids)), f"{r['dx']:+.3f}", f"{r['dy']:+.3f}", f"{r['shift']:.3f}", f"{rot_as:+.1f}", f"{scale_ppm:+.1f}", f"{r['residual_rms']:.3f}", f"{r['residual_max']:.3f}")
     console.print(t)
     return {"board": "charuco" if board is not None else f"checker {pattern[0]}x{pattern[1]}", "n_corners": len(pts[0]), "images": rows}
 
