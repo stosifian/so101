@@ -1,6 +1,6 @@
 """Image stability sanity check: N captures of a static checkerboard, corner drift in pixels vs the first image.
 
-    uv run scripts/camera/stability_check.py                    # 3 captures, 5 s apart, 9x6 inner corners
+    uv run scripts/camera/stability_check.py                    # 12 captures, 5 s apart (~6 s: capture takes 5.9 s), 9x6 corners
     uv run scripts/camera/stability_check.py -n 10 --interval 30
     uv run scripts/camera/stability_check.py --analyze data/raw/<run_id>   # re-analyze an existing run's images
 
@@ -61,7 +61,7 @@ def analyze(files: list[Path], pattern: tuple[int, int], console: Console) -> di
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("-n", type=int, default=3)
+    ap.add_argument("-n", type=int, default=12)
     ap.add_argument("--interval", type=float, default=5.0, help="s between capture starts")
     ap.add_argument("--cols", type=int, default=9, help="inner corners across")
     ap.add_argument("--rows", type=int, default=6, help="inner corners down")
