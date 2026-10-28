@@ -6,17 +6,15 @@ from so101.sensors.camera import parse_config_value, parse_summary
 SUMMARY = """Camera summary:
 Manufacturer: Sony Corporation
 Model: ILCE-7M4
-  Version: 1.00
+  Version: 3.01
   Serial Number: 00000000000000003
-Device Version: 3.01
 Model: should-not-override
 """
 
 
 def test_parse_summary():
     s = parse_summary(SUMMARY)
-    assert s == {"manufacturer": "Sony Corporation", "model": "ILCE-7M4", "ptp_version": "1.00",
-                 "serial": "00000000000000003", "firmware": "3.01"}  # fmt: skip
+    assert s == {"manufacturer": "Sony Corporation", "model": "ILCE-7M4", "serial": "00000000000000003", "firmware": "3.01"}
 
 
 def test_parse_config_value():

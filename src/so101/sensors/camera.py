@@ -50,9 +50,9 @@ class Camera(Protocol):
 
 
 def parse_summary(text: str) -> dict:
-    """Pick model / firmware / serial out of `gphoto2 --summary`."""
-    keys = {"Model": "model", "Manufacturer": "manufacturer", "Device Version": "firmware",
-            "Serial Number": "serial", "Version": "ptp_version"}  # fmt: skip
+    """Pick model / firmware / serial out of `gphoto2 --summary`. "Version" there is the PTP DeviceVersion,
+    i.e. the body firmware (A7 IV: matches MENU → Setup → Setup Option → Version)."""
+    keys = {"Model": "model", "Manufacturer": "manufacturer", "Version": "firmware", "Serial Number": "serial"}
     out = {}
     for line in text.splitlines():
         k, sep, v = line.strip().partition(":")
