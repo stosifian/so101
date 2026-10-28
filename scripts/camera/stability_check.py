@@ -9,7 +9,8 @@ Does not touch the arm. Nothing may move between captures (camera, tripod, iPad,
 ChArUco corners are matched by ID, so a partly hidden board still works (only corners seen in both images count).
 Per image vs image 0: mean shift (dx, dy) = whole-scene motion (tripod/iPad/table); a similarity fit splits off
 in-plane rotation (arcsec; camera roll on its head shows here) and scale (ppm; distance change); the residual
-after the similarity fit = corner-detection noise. Writes stability.json into the run directory.
+after the similarity fit = corner-detection noise. "bg" = median shift of static-scene tiles outside the board
+(moves with the camera); board−bg = the board moving within the scene. Writes stability.json into the run directory.
 """
 
 import argparse
@@ -43,18 +44,46 @@ def corners(path: Path, board, pattern: tuple[int, int]) -> dict[int, np.ndarray
     return dict(enumerate(c.reshape(-1, 2).astype(float))) if ok else None
 
 
+def gray(path: Path) -> np.ndarray:
+    if path.suffix.upper() == ".ARW":
+        return load_gray(path)
+    return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+
+
+def background_shifts(files: list[Path], board_xy: np.ndarray, tile: int = 512, min_peak: float = 0.3) -> np.ndarray | None:
+    """Median (dx, dy) of static-scene tiles vs image 0 (phase correlation), board area excluded.
+    The background moves with the camera; board minus background = the target moving in the scene."""
+    g0 = gray(files[0]).astype(np.float32)
+    H, W = g0.shape
+    (x0, y0), (x1, y1) = board_xy.min(0) - 200, board_xy.max(0) + 200
+    tiles = [(x, y) for y in range(0, H - tile, tile) for x in range(0, W - tile, tile)
+             if x + tile < x0 or x > x1 or y + tile < y0 or y > y1]  # fmt: skip
+    win = cv2.createHanningWindow((tile, tile), cv2.CV_32F)
+    imgs = [g0] + [gray(f).astype(np.float32) for f in files[1:]]
+    per_tile = []
+    for x, y in tiles:
+        a = g0[y : y + tile, x : x + tile]
+        if a.std() < 5:  # featureless
+            continue
+        v = [cv2.phaseCorrelate(a, g[y : y + tile, x : x + tile], win) for g in imgs[1:]]
+        if np.mean([r for _, r in v]) >= min_peak:
+            per_tile.append([(0.0, 0.0)] + [(-dx, -dy) for (dx, dy), _ in v])
+    return np.median(np.array(per_tile), axis=0) if per_tile else None
+
+
 def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console) -> dict:
     pts = [corners(f, board, pattern) for f in files]
     if pts[0] is None:
         sys.exit(f"no board found in {files[0].name}")
     rows = []
-    t = Table(title=f"corner drift vs {files[0].name} (px; 1 px ≈ 0.14 mm × distance in m)", title_justify="left")
-    for col in ["image", "corners", "dx", "dy", "|shift|", "rot ″", "scale ppm", "residual RMS", "residual max"]:
+    t = Table(title=f"drift vs image 0 (px; 1 px ≈ 0.14 mm × distance in m). resid = after shift+rot+scale; bg = static scene (camera); rel = board − bg", title_justify="left")
+    bg = background_shifts(files, np.array(list(pts[0].values())))
+    for col in ["#", "n", "dx", "dy", "rot ″", "ppm", "resid", "bg dx", "bg dy", "rel dx", "rel dy"]:
         t.add_column(col, justify="right")
-    for f, p in zip(files, pts):
+    for k, (f, p) in enumerate(zip(files, pts)):
         if p is None:
             rows.append({"image": f.name, "found": False})
-            t.add_row(f.name, "[red]not found", "", "", "", "", "", "", "")
+            t.add_row(str(k), "[red]none", *[""] * 9)
             continue
         ids = sorted(set(p) & set(pts[0]))
         d = np.array([p[i] - pts[0][i] for i in ids])
@@ -66,8 +95,11 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
         res = np.linalg.norm(a + d - (a @ M[:, :2].T + M[:, 2]), axis=1)
         r = {"image": f.name, "found": True, "n_common": len(ids), "dx": float(shift[0]), "dy": float(shift[1]),
              "shift": float(np.hypot(*shift)), "rot_arcsec": rot_as, "scale_ppm": scale_ppm, "residual_rms": float(np.sqrt((res**2).mean())), "residual_max": float(res.max())}  # fmt: skip
+        b = bg[k] if bg is not None else (np.nan, np.nan)
+        r.update(bg_dx=float(b[0]), bg_dy=float(b[1]), rel_dx=float(shift[0] - b[0]), rel_dy=float(shift[1] - b[1]))
         rows.append(r)
-        t.add_row(f.name, str(len(ids)), f"{r['dx']:+.3f}", f"{r['dy']:+.3f}", f"{r['shift']:.3f}", f"{rot_as:+.1f}", f"{scale_ppm:+.1f}", f"{r['residual_rms']:.3f}", f"{r['residual_max']:.3f}")
+        t.add_row(str(k), str(len(ids)), f"{r['dx']:+.3f}", f"{r['dy']:+.3f}", f"{rot_as:+.1f}", f"{scale_ppm:+.1f}", f"{r['residual_rms']:.3f}",
+                  f"{b[0]:+.3f}", f"{b[1]:+.3f}", f"{r['rel_dx']:+.3f}", f"{r['rel_dy']:+.3f}")
     console.print(t)
     return {"board": "charuco" if board is not None else f"checker {pattern[0]}x{pattern[1]}", "n_corners": len(pts[0]), "images": rows}
 
