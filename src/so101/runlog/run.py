@@ -16,7 +16,7 @@ from pathlib import Path
 from so101.config import REPO_ROOT
 
 RAW_DIR = REPO_ROOT / "data" / "raw"
-TRACKED_PACKAGES = ["so101", "feetech-servo-sdk", "pyserial", "numpy", "scipy", "rerun-sdk", "pyarrow"]
+TRACKED_PACKAGES = ["so101", "feetech-servo-sdk", "pyserial", "numpy", "scipy", "rerun-sdk", "pyarrow", "opencv-python", "rawpy"]
 
 
 def _git(*args: str) -> str | None:

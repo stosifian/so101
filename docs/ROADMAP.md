@@ -24,8 +24,8 @@ Key decision (D1, 2026-10-28): the iPad's on-screen ChArUco is both the intrinsi
 
 | # | Step | Status |
 |---|------|--------|
-| 0–2 | Camera interface, gphoto2 tethering (50 captures), settings | planned |
-| 3–5 | Target scales, intrinsics (iPad), rig stability | planned |
+| 0–2 | Camera interface, gphoto2 tethering (50 captures), settings | 0 done 2026-10-28; 1–2 next |
+| 3–5 | Target scales (deferred: no caliper yet, D4), intrinsics (iPad), rig stability | planned |
 | 6–11 | Dry run, ring-down, repeatability/backlash, sag, accuracy grid, thermal drift | planned |
 | 12 | Write-up + Phase 3 choice | planned |
 

@@ -4,16 +4,16 @@ The source of truth for Phase 2. **Update this file every time the plan changes:
 add a dated entry to the deviation log, with the reason. `docs/ROADMAP.md` only summarizes it.
 Spec: `so101-metrology-plan.md` §3 (Phase 2), §6–§9. Targets + generator: `so101-metrology/`.
 
-Last updated: 2026-10-28 (revision 1).
+Last updated: 2026-10-28 (revision 2).
 
 ## Current plan
 
 | # | Step | Done when | Status | Arm moves? | Changed vs baseline |
 |---|------|-----------|--------|------------|---------------------|
-| 0 | Setup: this plan; camera interface (gphoto2 + mock backends, behind `Sensor`); opencv + rawpy in the env | Mock camera passes tests | planned | no | camera code in `src/so101/` (D3) |
+| 0 | Setup: this plan; camera interface (gphoto2 + mock backends, behind `Sensor`); opencv + rawpy in the env | Mock camera passes tests | **done 2026-10-28**: `so101.sensors` (`Sensor`, `Camera`, `Gphoto2Camera` via the CLI with a per-capture timeout, `MockCamera`), `scripts/camera/tether_check.py`, opencv 5.0.0 + rawpy 0.27.1; 224 tests | no | camera code in `src/so101/` (D3) |
 | 1 | **Tethering:** 50 consecutive captures over gphoto2; record body + lens firmware | 50/50, no hang/disconnect; else Sony Camera Remote SDK behind the same interface | planned | no | — |
 | 2 | **Camera settings** (spec §6): M, fixed ISO + WB, MF taped, IBIS off, RAW (decoded without lens corrections), f/11, 1/60 s, EFC, save to PC, auto-review + power save off | Menus photographed; settings hash in the run header | planned | no | — |
-| 3 | **Targets + scale:** iPad ChArUco (pixel-exact, native resolution); caliper the gripper print; iPad scale via print-vs-iPad fit (multi-view, relative pose free, not assumed coplanar) or caliper jaws imaged on the screen | iPad and gripper-target scales known to ≤ 0.05 % | planned | no | iPad replaces the printed reference board (D1); caliper anchors absolute scale (D2) |
+| 3 | **Targets + scale:** iPad ChArUco (pixel-exact, native resolution); caliper the gripper print; iPad scale via print-vs-iPad fit (multi-view, relative pose free, not assumed coplanar) or caliper jaws imaged on the screen | iPad and gripper-target scales known to ≤ 0.05 % | **deferred** until a caliper is available (D4); step 4 goes first |  no | iPad replaces the printed reference board (D1); caliper anchors absolute scale (D2) |
 | 4 | **Intrinsics:** ~30 iPad views at working distance (~0.5 m), focus taped, views covering the frame corners, tilt ≤ ~40° | Reprojection 0.1–0.2 px; no moiré pattern in detected-vs-reprojected corner plots; f ≈ 6840 px | planned | no | — |
 | 5 | **Rig stability:** static iPad + gripper target 1–2 h; dial-indicator depth check | Tripod/table drift ≪ 0.25 mm | planned | no | — |
 | 6 | **Dry run:** 20 poses, move → settle → snapshot → capture → snapshot (spec §7) | 0 missed captures; manifest ↔ files 1:1; stillness check never fires | planned | yes | — |
@@ -56,3 +56,4 @@ Newest last. Each entry: what changed, why, evidence.
 | D1 | 2026-10-28 | The iPad's on-screen ChArUco is both the intrinsics target and the world reference; the printed reference board is dropped (user) | Flat rigid glass, no humidity change, pattern set in software; removes the board↔gripper scale chain's third member | Discussion 2026-10-28; error budget above |
 | D2 | 2026-10-28 | A caliper anchors absolute scale (≤ 0.05 %); the iPad print fit alone gives only the printer's x/y ratio | Apple's 264 ppi is rounded (~0.1–0.3 %) → up to ~0.6 mm error on the accuracy grid | Error budget above |
 | D3 | 2026-10-28 | Camera code lives in `src/so101/` behind the `Sensor` interface, not the spec §10 `so101_metrology/` layout | One package; Phase 1 interfaces (`Arm`, `SafeArm`, manifest) are reused | CLAUDE.md conventions |
+| D4 | 2026-10-28 | Caliper-dependent work deferred (no caliper today, user): step 3's scale measurements and anything that needs absolute scale (step 10; absolute depth). Step 4 (intrinsics, including generating the pixel-exact iPad ChArUco) runs before step 3 | Intrinsics don't depend on board scale, so the iPad calibration is valid without the caliper; relative tests (steps 5–9, 11) are scale-insensitive | Error budget above |
