@@ -13,13 +13,14 @@ gphoto2:              # readable over USB
   focusmode: Manual   # focus ring taped once set at the working distance
   exposurecompensation: "0"
   capturetarget: sdram  # PC only: nothing written to the card
-manual_only:          # not readable over USB: photograph the menus (to confirm)
+manual_only:          # not readable over USB; set + confirmed by the user 2026-10-28
   exposure_mode: M
   ibis: "off"
   lens_corrections: "off"   # JPEG only; RAW is decoded with rawpy (no corrections)
-  electronic_front_curtain: "on"
+  shutter_type: Mechanical
+  electronic_front_curtain: "on"  # electronic start, mechanical end: no shutter shake during exposure
   auto_review: "off"
-  power_save: longest
+  power_save: longest  # Power Save Start Time is greyed out while tethered (PC Remote)
   release_without_card: enabled  # only if the cards are removed
 ipad:                 # display settings while it is the target (recommended, to confirm)
   brightness: max
