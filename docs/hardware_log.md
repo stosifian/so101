@@ -154,3 +154,9 @@ Table plane = base underside (z = −2.4 mm), camera mount included, collision s
 - Base clamping: **not rigid enough (2026-10-26):** during the step 6a push test (run 20261026-170706_hold_follower) a firm hand push on the arm shifted the whole arm on the table (the clamp slipped). Joint ticks are unaffected (measured between parts of the arm), but anything in the table/world frame is: calibration, the table plane, Phase 2 metrology. The step 6 table contact (39 % for ~3 s) may also have nudged it. Fix before steps 7–8.
 - **2026-10-27, base rocking found and fixed:** both clamps on the open-table side pressed the plate down along that edge only, leaving clearance at the front, so the base sat slightly tilted and could rock (user). First table touches (run `20261027-122345_model_check_follower`, edge mount): height error −3.6 → +11.0 mm with reach, apparent tilt 2.7°. **Moved to a table corner, one clamp on each edge.** New `baseref` recorded at the corner mount (run `20261027-124750_model_check_follower`).
 - Photos:
+
+## All-joint pose tour (2026-10-28, run 20261028-155951_tour_follower)
+- `config/tours/pick_and_place.yaml`: pick/place emulation (45° down-forward approach, 4.5 cm pick height) + workspace spread; tool path box 136 × 360 × 222 mm (x × y × z). All joints moving together (joint-space min-jerk, 150 ticks/s peak, 100 on descents).
+- Completed: no freeze, trip or contact; 0 missed reads in 29,850 samples. End-of-dwell error ≤ 14 ticks (elbow_flex under gravity load; median 1–3 ticks on every joint), lift ≤ 9. Peak load 17.6 % (elbow), others ≤ 12.4 %. Temperatures flat.
+- Started from rest with lift 1009 and elbow 2929 outside their limits (outside-start rule held them); 3 self-collision warnings near the folded rest pose (warn-only, known blind spot), none during the working part.
+- Loop overruns 6 % at 100 Hz (per-step collision check + viz); fine for quasi-static work, revisit before dynamics tests.
