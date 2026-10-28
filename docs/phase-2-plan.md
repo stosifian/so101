@@ -4,7 +4,7 @@ The source of truth for Phase 2. **Update this file every time the plan changes:
 add a dated entry to the deviation log, with the reason. `docs/ROADMAP.md` only summarizes it.
 Spec: `so101-metrology-plan.md` §3 (Phase 2), §6–§9. Targets + generator: `so101-metrology/`.
 
-Last updated: 2026-10-28 (revision 5).
+Last updated: 2026-10-28 (revision 6).
 
 ## Current plan
 
@@ -14,7 +14,7 @@ Last updated: 2026-10-28 (revision 5).
 | 1 | **Tethering:** 50 consecutive captures over gphoto2; record body + lens firmware | 50/50, no hang/disconnect; else Sony Camera Remote SDK behind the same interface | **done 2026-10-28** (`20261028-131445_tether_camera`): **50/50**, no hang; 5.9 s per capture (median; p95 5.96, max 6.09) for a 67.6 MB uncompressed RAW; body firmware 3.01, gphoto2 2.5.32. gphoto2 accepted; Sony SDK not needed | no | — |
 | 2 | **Camera settings** (spec §6): M, fixed ISO + WB, MF taped, IBIS off, RAW (decoded without lens corrections), f/11, 1/60 s, EFC, save to PC, auto-review + power save off | Menus photographed; settings hash in the run header | **done 2026-10-28**: settings in `config/camera_a7iv.yaml`: f/11, 1/30 s, ISO 1600, Daylight, RAW, MF, sdram (read back over USB every run); SteadyShot off, lens comp. off, Mechanical + e-front curtain, auto review off (user-confirmed; Power Save Start Time greyed out while tethered). Exposure from test shots `…133453`/`142131`/`142714`: iPad whites 61–91 %, unclipped. Glare: dark cloth behind the camera → black squares 0.3–1.7 % (`…143317`), one residual streak away from corners. Stability: 3 shots / 10 s, shift ≤ 0.07 px, residual 0.03 px RMS (`20261028-143956_stability_camera`). Menu photos: optional | no | — |
 | 3 | **Targets + scale:** iPad ChArUco (pixel-exact, native resolution); caliper the gripper print; iPad scale via print-vs-iPad fit (multi-view, relative pose free, not assumed coplanar) or caliper jaws imaged on the screen | iPad and gripper-target scales known to ≤ 0.05 % | **deferred** until a caliper is available (D4); step 4 goes first |  no | iPad replaces the printed reference board (D1); caliper anchors absolute scale (D2) |
-| 4 | **Intrinsics:** ~30 iPad views at working distance (~0.5 m), focus taped, views covering the frame corners, tilt ≤ ~40° | Reprojection 0.1–0.2 px; no moiré pattern in detected-vs-reprojected corner plots; f ≈ 6840 px | planned | no | — |
+| 4 | **Intrinsics:** ~30 iPad views at working distance (~0.5 m), focus taped, views covering the frame corners, tilt ≤ ~40° | Reprojection 0.1–0.2 px; no moiré pattern in detected-vs-reprojected corner plots; f ≈ 6840 px | **tooling done 2026-10-28**: `config/targets/ipad_charuco.yaml` (13×9 squares of 168 display px ≈ 16.2 mm, DICT_6X6_250, 96 corners) → pixel-exact PNG (`scripts/camera/make_ipad_charuco.py`, corners exact to design); `scripts/camera/calibrate_intrinsics.py` capture (live corner count + coverage map) / analyze (`data/derived/<run>/intrinsics.json` + residual plots); synthetic test recovers f within 1 %. Awaiting ~30 views | no | — |
 | 5 | **Rig stability:** static iPad + gripper target 1–2 h; dial-indicator depth check | Tripod/table drift ≪ 0.25 mm | planned | no | — |
 | 6 | **Dry run:** 20 poses, move → settle → snapshot → capture → snapshot (spec §7) | 0 missed captures; manifest ↔ files 1:1; stillness check never fires | planned | yes | — |
 | 7 | **Ring-down:** worst-case wobble (extended arm, lift/elbow moves) | `dwell_s` set from measurement | planned | yes | — |
