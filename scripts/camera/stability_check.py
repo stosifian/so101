@@ -40,7 +40,7 @@ def analyze(files: list[Path], pattern: tuple[int, int], console: Console) -> di
     if pts[0] is None:
         sys.exit(f"no {pattern[0]}x{pattern[1]} checkerboard found in {files[0].name}")
     rows = []
-    t = Table(title=f"corner drift vs {files[0].name} (px; 1 px ≈ 73 µm at 0.5 m)", title_justify="left")
+    t = Table(title=f"corner drift vs {files[0].name} (px; 1 px ≈ 73 µm at 0.5 m, 56 µm at 0.38 m)", title_justify="left")
     for col in ["image", "dx", "dy", "|shift|", "residual RMS", "residual max"]:
         t.add_column(col, justify="right")
     for f, p in zip(files, pts):

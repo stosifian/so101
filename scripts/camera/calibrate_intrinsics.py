@@ -5,13 +5,15 @@
     uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_id> --drop img_0007,img_0012
 
 Does not touch the arm. Setup: iPad showing config/targets/ipad_charuco_2360x1640.png full screen (1:1),
-camera at the working distance (~0.5 m), focus taped, settings per config/camera_a7iv.yaml.
+camera at the working distance (frame the extended arm first), focus taped, settings per config/camera_a7iv.yaml.
 capture: after each shot it reports corners found (of 96) and a 6 x 4 coverage map of the frame so you can
   aim the next view at empty cells. Aim for ~30 views: board in every part of the frame (corners and edges
   matter most for distortion), tilted up to ~40 deg in different directions, some views closer/farther.
 analyze: calibrates and writes data/derived/<run_id>/intrinsics.json + residuals.png.
   Pass: overall RMS ~0.1-0.2 px; no view far above the rest; residual arrows random (no swirl or pattern);
-  no hot corners on the board map (moiré or glare); fx ~ fy ~ 6840 px; principal point near the centre.
+  no hot corners on the board map (moiré or glare); fx ≈ fy, between ~6833 px (infinity) and the
+  thin-lens value at --focus-m (~7500 px at 0.38 m); principal point near the centre.
+Nothing else depends on the distance; but intrinsics are only valid at the focus they were shot at.
 """
 
 import argparse
@@ -30,7 +32,14 @@ from so101.runlog.manifest import Manifest
 from so101.runlog.run import Run, sha256_file
 from so101.sensors import Gphoto2Camera
 
-F_EXPECTED_PX = 35.0 / (35.9 / 7008)  # 35 mm lens, 35.9 mm sensor width over 7008 px ≈ 6833 px
+PX_MM = 35.9 / 7008  # sensor width over 7008 px
+
+
+def f_expected_px(focus_m: float, f_mm: float = 35.0) -> float:
+    """Rough sanity value: thin-lens image distance f·u/(u−f) in pixels (≈ 6833 px at infinity, ≈ 7500 at 0.38 m).
+    The real lens focuses internally and breathes differently, so this is a ±10 % plausibility check only."""
+    u = focus_m * 1000
+    return f_mm * u / (u - f_mm) / PX_MM
 
 
 def show_coverage(console: Console, grid: np.ndarray) -> None:
@@ -114,8 +123,11 @@ def cmd_analyze(args, console: Console) -> None:
     W, H = size
     K = cal.K
     t.add_row("RMS (px)", f"{cal.rms_px:.3f}", "", "ok" if cal.rms_px <= 0.2 else "[yellow]> 0.2")
-    for name, val, ref in [("fx", K[0, 0], F_EXPECTED_PX), ("fy", K[1, 1], F_EXPECTED_PX)]:
-        t.add_row(name, f"{val:.1f}", f"{cal.std[name]:.1f}", "ok" if abs(val / ref - 1) < 0.03 else f"[yellow]expected ~{ref:.0f}")
+    f_lo, f_hi = f_expected_px(1e6), f_expected_px(args.focus_m)
+    for name in ("fx", "fy"):
+        val = K[0, 0] if name == "fx" else K[1, 1]
+        ok = 0.97 * f_lo <= val <= 1.05 * f_hi
+        t.add_row(name, f"{val:.1f}", f"{cal.std[name]:.1f}", "ok" if ok else f"[yellow]expected ~{f_lo:.0f}–{f_hi:.0f}")
     t.add_row("cx", f"{K[0, 2]:.1f}", f"{cal.std['cx']:.1f}", f"centre {W / 2:.0f}")
     t.add_row("cy", f"{K[1, 2]:.1f}", f"{cal.std['cy']:.1f}", f"centre {H / 2:.0f}")
     for k in ["k1", "k2", "p1", "p2", "k3"]:
@@ -135,6 +147,7 @@ def main() -> None:
     a = sub.add_parser("analyze")
     a.add_argument("run_dir")
     a.add_argument("--drop", default="", help="comma-separated image stems to leave out")
+    a.add_argument("--focus-m", type=float, default=0.5, help="focus distance, only for the fx/fy plausibility check")
     for p in (c, a):
         p.add_argument("--target", default="ipad_charuco")
     args = ap.parse_args()
