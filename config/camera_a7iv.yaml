@@ -1,0 +1,28 @@
+# Sony A7 IV metrology settings (Phase 2 step 2; spec §6). Set by hand on the camera; never written by our code.
+# `gphoto2` keys are read back with --get-config at the start of every run and stored in camera.json.
+# Established 2026-10-28 from test shots 20261028-142714_tether_camera (iPad whites 78-82 % of full scale, no clipping).
+body: ILCE-7M4
+firmware: "3.01"
+lens: SEL35F18F (FE 35 mm f/1.8, no OSS)
+gphoto2:              # readable over USB
+  f-number: f/11
+  shutterspeed: 1/30  # multiple of 1/60 s (60 Hz mains flicker); scene is static
+  iso: "1600"
+  whitebalance: Daylight
+  imagequality: RAW   # uncompressed, 67.6 MB, 5.9 s per capture
+  focusmode: Manual   # focus ring taped once set at the working distance
+  exposurecompensation: "0"
+  capturetarget: sdram  # PC only: nothing written to the card
+manual_only:          # not readable over USB: photograph the menus (to confirm)
+  exposure_mode: M
+  ibis: "off"
+  lens_corrections: "off"   # JPEG only; RAW is decoded with rawpy (no corrections)
+  electronic_front_curtain: "on"
+  auto_review: "off"
+  power_save: longest
+  release_without_card: enabled  # only if the cards are removed
+ipad:                 # display settings while it is the target (recommended, to confirm)
+  brightness: max
+  auto_lock: never
+  true_tone: "off"
+  night_shift: "off"

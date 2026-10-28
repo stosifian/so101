@@ -4,7 +4,7 @@ The source of truth for Phase 2. **Update this file every time the plan changes:
 add a dated entry to the deviation log, with the reason. `docs/ROADMAP.md` only summarizes it.
 Spec: `so101-metrology-plan.md` §3 (Phase 2), §6–§9. Targets + generator: `so101-metrology/`.
 
-Last updated: 2026-10-28 (revision 3).
+Last updated: 2026-10-28 (revision 4).
 
 ## Current plan
 
@@ -12,7 +12,7 @@ Last updated: 2026-10-28 (revision 3).
 |---|------|-----------|--------|------------|---------------------|
 | 0 | Setup: this plan; camera interface (gphoto2 + mock backends, behind `Sensor`); opencv + rawpy in the env | Mock camera passes tests | **done 2026-10-28**: `so101.sensors` (`Sensor`, `Camera`, `Gphoto2Camera` via the CLI with a per-capture timeout, `MockCamera`), `scripts/camera/tether_check.py`, opencv 5.0.0 + rawpy 0.27.1; 224 tests | no | camera code in `src/so101/` (D3) |
 | 1 | **Tethering:** 50 consecutive captures over gphoto2; record body + lens firmware | 50/50, no hang/disconnect; else Sony Camera Remote SDK behind the same interface | **done 2026-10-28** (`20261028-131445_tether_camera`): **50/50**, no hang; 5.9 s per capture (median; p95 5.96, max 6.09) for a 67.6 MB uncompressed RAW; body firmware 3.01, gphoto2 2.5.32. gphoto2 accepted; Sony SDK not needed | no | — |
-| 2 | **Camera settings** (spec §6): M, fixed ISO + WB, MF taped, IBIS off, RAW (decoded without lens corrections), f/11, 1/60 s, EFC, save to PC, auto-review + power save off | Menus photographed; settings hash in the run header | planned | no | — |
+| 2 | **Camera settings** (spec §6): M, fixed ISO + WB, MF taped, IBIS off, RAW (decoded without lens corrections), f/11, 1/60 s, EFC, save to PC, auto-review + power save off | Menus photographed; settings hash in the run header | **in progress 2026-10-28**: settings recorded in `config/camera_a7iv.yaml` (f/11, 1/30 s, ISO 1600, Daylight, RAW, MF, sdram) from test shots `20261028-133453`/`142131`/`142714`: iPad whites 78–82 % of full scale, no clipping, 9×6 corners detected. To do: photograph menus (IBIS, lens corrections, EFC, auto review, power save); remove glare (reflections of the window/blinds lift black squares from ~1 % to 6–13 %) | no | — |
 | 3 | **Targets + scale:** iPad ChArUco (pixel-exact, native resolution); caliper the gripper print; iPad scale via print-vs-iPad fit (multi-view, relative pose free, not assumed coplanar) or caliper jaws imaged on the screen | iPad and gripper-target scales known to ≤ 0.05 % | **deferred** until a caliper is available (D4); step 4 goes first |  no | iPad replaces the printed reference board (D1); caliper anchors absolute scale (D2) |
 | 4 | **Intrinsics:** ~30 iPad views at working distance (~0.5 m), focus taped, views covering the frame corners, tilt ≤ ~40° | Reprojection 0.1–0.2 px; no moiré pattern in detected-vs-reprojected corner plots; f ≈ 6840 px | planned | no | — |
 | 5 | **Rig stability:** static iPad + gripper target 1–2 h; dial-indicator depth check | Tripod/table drift ≪ 0.25 mm | planned | no | — |
