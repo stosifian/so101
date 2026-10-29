@@ -133,11 +133,13 @@ def plot(result: dict, times: dict[str, float], path: Path) -> None:
     t = np.array([times[r["image"]] for r in rows]) / 60
     g = lambda k: np.array([r.get(k, np.nan) for r in rows])  # noqa: E731
     blue, orange, ink, muted = "#2a78d6", "#eb6834", "#1f1f1d", "#6b6a63"
-    panels = [("camera: static background shift (px)", [("dx", g("bg_dx"), blue), ("dy", g("bg_dy"), orange)]),
+    panels = [("board shift in the image (px)", [("dx", g("dx"), blue), ("dy", g("dy"), orange)]),
+              ("camera: static background shift (px)", [("dx", g("bg_dx"), blue), ("dy", g("bg_dy"), orange)]),
               ("board relative to background (px)", [("dx", g("rel_dx"), blue), ("dy", g("rel_dy"), orange)]),
               ("board in-plane rotation (arcsec)", [(None, g("rot_arcsec"), blue)]),
               ("board scale (ppm; + = closer)", [(None, g("scale_ppm"), blue)]),
               ("detection residual RMS (px; image 0 is the reference)", [(None, np.where(t == 0, np.nan, g("residual_rms")), blue)])]  # fmt: skip
+    panels = [p for p in panels if any(np.isfinite(y[1:]).any() for _, y, _ in p[1])]  # drop panels with no data (e.g. no background)
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 2.3 * len(panels)), sharex=True)
     for a, (title, series) in zip(axes, panels):
         for name, y, c in series:
