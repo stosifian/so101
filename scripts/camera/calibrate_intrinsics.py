@@ -1,6 +1,7 @@
 """Phase 2 step 4: camera intrinsics from the iPad ChArUco.
 
     uv run scripts/camera/calibrate_intrinsics.py capture                 # interactive: Enter = shoot, q = done
+    uv run scripts/camera/calibrate_intrinsics.py capture --every 8 --count 30   # hands-free, spoken cues
     uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_id>
     uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_id> --drop img_0007,img_0012
 
@@ -9,6 +10,9 @@ camera at the working distance (frame the extended arm first), focus taped, sett
 capture: after each shot it reports corners found (of 96) and a 6 x 4 coverage map of the frame so you can
   aim the next view at empty cells. Aim for ~30 views: board in every part of the frame (corners and edges
   matter most for distortion), tilted up to ~40 deg in different directions, some views closer/farther.
+  --every S: hands-free (you hold the iPad). Spoken cues: "hold" ~1 s before the shot, "move" --hold-s after
+  the trigger (the exposure is over by then; the download continues). One shot every S s (≥ ~7.5: capture
+  5.9 s + detection ~1 s). Ctrl-C stops early.
 analyze: calibrates and writes data/derived/<run_id>/intrinsics.json + residuals.png.
   Pass: overall RMS ~0.1-0.2 px; no view far above the rest; residual arrows random (no swirl or pattern);
   no hot corners on the board map (moiré or glare); fx ≈ fy, between ~6833 px (infinity) and the
@@ -18,7 +22,11 @@ Nothing else depends on the distance; but intrinsics are only valid at the focus
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +55,14 @@ def show_coverage(console: Console, grid: np.ndarray) -> None:
         console.print("  " + " ".join(f"[{'green' if v else 'red'}]{v:4d}[/]" for v in row))
 
 
+def cue(word: str) -> None:
+    """Spoken cue (macOS `say`, non-blocking), terminal bell otherwise."""
+    if shutil.which("say"):
+        subprocess.Popen(["say", "-r", "230", word], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        print("\a", end="", flush=True)
+
+
 def cmd_capture(args, console: Console) -> None:
     spec = CharucoSpec.load(args.target)
     board = spec.board()
@@ -58,15 +74,36 @@ def cmd_capture(args, console: Console) -> None:
     run.write_json("camera.json", info)
     manifest = Manifest(run, "intrinsics")
     pts, size, i = [], None, 0
+    timed = args.every is not None
+    if timed:
+        console.print(f"hands-free: {args.count} shots, one every {args.every:g} s. Cues: 'hold' = keep still, 'move' = next pose.")
+        cue("first pose")
+        time.sleep(max(args.every - 1.0, 2.0))
+    next_shot = time.monotonic()
     try:
         while True:
-            try:
-                key = input(f"[view {i}] Enter = capture, q = finish: ").strip().lower()
-            except EOFError:
-                break
-            if key == "q":
-                break
-            r = cam.capture(run.dir / "images", f"img_{i:04d}")
+            if timed:
+                if i >= args.count:
+                    break
+                time.sleep(max(0.0, next_shot - 1.0 - time.monotonic()))
+                cue("hold")
+                time.sleep(1.0)
+                next_shot = time.monotonic() + args.every
+                box: dict = {}
+                th = threading.Thread(target=lambda: box.setdefault("r", cam.capture(run.dir / "images", f"img_{i:04d}")))
+                th.start()
+                th.join(args.hold_s)
+                cue("move")
+                th.join()
+                r = box["r"]
+            else:
+                try:
+                    key = input(f"[view {i}] Enter = capture, q = finish: ").strip().lower()
+                except EOFError:
+                    break
+                if key == "q":
+                    break
+                r = cam.capture(run.dir / "images", f"img_{i:04d}")
             raw = [f for f in r.files if f.suffix.upper() == ".ARW"]
             det = None
             if r.ok and raw:
@@ -144,6 +181,9 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("capture")
     c.add_argument("--notes", default="")
+    c.add_argument("--every", type=float, help="hands-free: seconds between shots (spoken cues)")
+    c.add_argument("--count", type=int, default=30, help="hands-free: number of shots")
+    c.add_argument("--hold-s", type=float, default=2.0, help="hands-free: keep still this long after the trigger")
     a = sub.add_parser("analyze")
     a.add_argument("run_dir")
     a.add_argument("--drop", default="", help="comma-separated image stems to leave out")
