@@ -2,7 +2,7 @@
 
     uv run scripts/camera/stability_check.py                    # 12 captures, 5 s apart (~6 s: capture takes 5.9 s), iPad ChArUco
     uv run scripts/camera/stability_check.py --board checker    # plain 9x6 checkerboard (--cols/--rows)
-    uv run scripts/camera/stability_check.py -n 10 --interval 30
+    uv run scripts/camera/stability_check.py -n 41 --interval 90        # 1 h (step 5 rig stability)
     uv run scripts/camera/stability_check.py --analyze data/raw/<run_id>   # re-analyze an existing run's images
 
 Does not touch the arm. Nothing may move between captures (camera, tripod, iPad, table).
@@ -10,7 +10,9 @@ ChArUco corners are matched by ID, so a partly hidden board still works (only co
 Per image vs image 0: mean shift (dx, dy) = whole-scene motion (tripod/iPad/table); a similarity fit splits off
 in-plane rotation (arcsec; camera roll on its head shows here) and scale (ppm; distance change); the residual
 after the similarity fit = corner-detection noise. "bg" = median shift of static-scene tiles outside the board
-(moves with the camera); board−bg = the board moving within the scene. Writes stability.json into the run directory.
+(moves with the camera); board−bg = the board moving within the scene.
+Also writes data/derived/<run_id>/stability.png (everything vs time). Long runs: a failed capture is logged and
+skipped; 3 failures in a row stop the run (camera asleep or disconnected). Writes stability.json into the run directory.
 """
 
 import argparse
@@ -26,6 +28,7 @@ from rich.console import Console
 from rich.table import Table
 
 from so101.analysis.charuco import CharucoSpec, detect, load_gray
+from so101.config import REPO_ROOT
 from so101.runlog.manifest import Manifest
 from so101.runlog.run import Run
 from so101.sensors import Gphoto2Camera, MockCamera
@@ -104,6 +107,52 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
     return {"board": "charuco" if board is not None else f"checker {pattern[0]}x{pattern[1]}", "n_corners": len(pts[0]), "images": rows}
 
 
+def capture_times(run_dir: Path) -> dict[str, float]:
+    """image name -> seconds since the first capture request (from the manifest)."""
+    t = {}
+    for line in open(run_dir / "manifest.jsonl"):
+        m = json.loads(line)
+        if m.get("type") == "pose" and m["camera"]["ok"]:
+            for f in m["camera"]["files"]:
+                t[Path(f).name] = m["camera"]["t_request_ns"]
+    t0 = min(t.values())
+    return {k: (v - t0) / 1e9 for k, v in t.items()}
+
+
+def plot(result: dict, times: dict[str, float], path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    rows = [r for r in result["images"] if r.get("found") and r["image"] in times]
+    t = np.array([times[r["image"]] for r in rows]) / 60
+    g = lambda k: np.array([r.get(k, np.nan) for r in rows])  # noqa: E731
+    blue, orange, ink, muted = "#2a78d6", "#eb6834", "#1f1f1d", "#6b6a63"
+    panels = [("camera: static background shift (px)", [("dx", g("bg_dx"), blue), ("dy", g("bg_dy"), orange)]),
+              ("board relative to background (px)", [("dx", g("rel_dx"), blue), ("dy", g("rel_dy"), orange)]),
+              ("board in-plane rotation (arcsec)", [(None, g("rot_arcsec"), blue)]),
+              ("board scale (ppm; + = closer)", [(None, g("scale_ppm"), blue)]),
+              ("detection residual RMS (px; image 0 is the reference)", [(None, np.where(t == 0, np.nan, g("residual_rms")), blue)])]  # fmt: skip
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11, 2.3 * len(panels)), sharex=True)
+    for a, (title, series) in zip(axes, panels):
+        for name, y, c in series:
+            a.plot(t, y, "-o", color=c, lw=1.5, ms=3)
+            if name:
+                a.annotate(name, (t[-1], y[-1]), xytext=(5, 0), textcoords="offset points", color=ink, va="center")
+        a.set_title(title, loc="left", color=ink, fontsize=10)
+        a.grid(color="#e4e3dd", lw=0.6)
+        a.axhline(0, color=muted, lw=0.6)
+        a.tick_params(colors=muted)
+        for k in ("top", "right"):
+            a.spines[k].set_visible(False)
+    axes[-1].set_xlabel("time (min)", color=muted)
+    fig.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=110)
+    plt.close(fig)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-n", type=int, default=12)
@@ -124,7 +173,10 @@ def main() -> None:
         files = sorted((args.analyze / "images").glob("*.ARW"))
         if not files:
             sys.exit(f"no .ARW files in {args.analyze}/images")
-        analyze(files, board, pattern, console)  # read-only: raw run directories are immutable
+        result = analyze(files, board, pattern, console)  # read-only: raw run directories are immutable
+        out = REPO_ROOT / "data" / "derived" / args.analyze.name / "stability.png"
+        plot(result, capture_times(args.analyze), out)
+        console.print(f"wrote {out.relative_to(REPO_ROOT)}")
         return
 
     cam = MockCamera() if args.mock else Gphoto2Camera()
@@ -133,15 +185,17 @@ def main() -> None:
               notes=f"static {args.board} stability n={args.n} interval={args.interval}; {args.notes}")  # fmt: skip
     run.write_json("camera.json", info)
     manifest = Manifest(run, "stability")
-    files = []
+    files, streak = [], 0
     try:
         for i in range(args.n):
             t0 = time.monotonic()
             r = cam.capture(run.dir / "images", f"img_{i:04d}")
             manifest.add(f"capture_{i:04d}", commanded_ticks=None, before=None, after=None, camera={**r.as_dict(), "backend": cam.name})
             console.print(f"{i + 1}/{args.n}  {r.duration_s:.2f} s  {'ok' if r.ok else '[red]' + str(r.error)}")
-            if not r.ok:
-                sys.exit("capture failed; stopping")
+            streak = 0 if r.ok else streak + 1
+            if streak >= 3:
+                console.print("[red]3 failed captures in a row (camera asleep or disconnected?): stopping, analyzing what we have")
+                break
             files += [f for f in r.files if f.suffix.upper() == ".ARW"]
             if i < args.n - 1:
                 time.sleep(max(0.0, args.interval - (time.monotonic() - t0)))
@@ -149,9 +203,13 @@ def main() -> None:
         manifest.close()
     if args.mock:
         return
+    if not files:
+        sys.exit("no images captured")
     result = analyze(files, board, pattern, console)
     run.write_json("stability.json", result)
-    console.print(f"[bold]{run.run_id}[/]")
+    out = REPO_ROOT / "data" / "derived" / run.run_id / "stability.png"
+    plot(result, capture_times(run.dir), out)
+    console.print(f"[bold]{run.run_id}[/]  plot: {out.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
