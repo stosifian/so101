@@ -59,6 +59,7 @@ def background_shifts(files: list[Path], board_xy: np.ndarray, tile: int = 512, 
     g0 = gray(files[0]).astype(np.float32)
     H, W = g0.shape
     (x0, y0), (x1, y1) = board_xy.min(0) - 200, board_xy.max(0) + 200
+    y1 += y1 - y0  # also skip the board's mirror image on a glossy table below it (it moves with the board)
     tiles = [(x, y) for y in range(0, H - tile, tile) for x in range(0, W - tile, tile)
              if x + tile < x0 or x > x1 or y + tile < y0 or y > y1]  # fmt: skip
     win = cv2.createHanningWindow((tile, tile), cv2.CV_32F)
@@ -81,6 +82,9 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
     rows = []
     t = Table(title=f"drift vs image 0 (px; 1 px ≈ 0.14 mm × distance in m). resid = after shift+rot+scale; bg = static scene (camera); rel = board − bg", title_justify="left")
     bg = background_shifts(files, np.array(list(pts[0].values())))
+    if bg is None:
+        console.print("[yellow]no trackable static background (scene too dark or featureless): camera vs board motion "
+                      "can't be separated in this run. Light the static scene (not the board) next time.")  # fmt: skip
     for col in ["#", "n", "dx", "dy", "rot ″", "ppm", "resid", "bg dx", "bg dy", "rel dx", "rel dy"]:
         t.add_column(col, justify="right")
     for k, (f, p) in enumerate(zip(files, pts)):
