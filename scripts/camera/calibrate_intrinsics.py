@@ -4,6 +4,7 @@
     uv run scripts/camera/calibrate_intrinsics.py capture --every 8 --count 30   # hands-free, spoken cues
     uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_id>
     uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_id> --drop img_0007,img_0012
+    uv run scripts/camera/calibrate_intrinsics.py analyze data/raw/<run_a> data/raw/<run_b> --drop <run_a>/img_0024
 
 Does not touch the arm. Setup: iPad showing config/targets/ipad_charuco_2360x1640.png full screen (1:1),
 camera at the working distance (frame the extended arm first), focus taped, settings per config/camera_a7iv.yaml.
@@ -131,23 +132,29 @@ def cmd_capture(args, console: Console) -> None:
 
 
 def cmd_analyze(args, console: Console) -> None:
-    run_dir = Path(args.run_dir)
+    run_dirs = [Path(r) for r in args.run_dir]
+    multi = len(run_dirs) > 1
     spec = CharucoSpec.load(args.target)
     board = spec.board()
-    drop = set(filter(None, args.drop.split(",")))
-    files = [f for f in sorted((run_dir / "images").glob("*.ARW")) if f.stem not in drop]
+    drop = set(filter(None, args.drop.split(",")))  # img_0024 (single run) or <run_id>/img_0024
+    files = []
+    for rd in run_dirs:
+        files += [(f"{rd.name}/{f.stem}" if multi else f.stem, f) for f in sorted((rd / "images").glob("*.ARW"))]
+    files = [(k, f) for k, f in files if k not in drop]
     if not files:
-        sys.exit(f"no .ARW files in {run_dir}/images")
+        sys.exit("no .ARW files found")
     dets, size = {}, None
-    for f in files:
+    for key, f in files:
         gray = load_gray(f)
         size = (gray.shape[1], gray.shape[0])
-        dets[f.stem] = detect(gray, board)
-        console.print(f"  {f.stem}: {0 if dets[f.stem] is None else len(dets[f.stem].ids)} corners")
+        dets[key] = detect(gray, board)
+        console.print(f"  {key}: {0 if dets[key] is None else len(dets[key].ids)} corners")
     cal = calibrate(dets, board, size)
-    out = REPO_ROOT / "data" / "derived" / run_dir.name
-    out.mkdir(parents=True, exist_ok=True)
-    result = {"run_id": run_dir.name, "target": spec.name, "target_spec_sha256": sha256_file(REPO_ROOT / f"config/targets/{spec.name}.yaml"),
+    name = run_dirs[0].name if not multi else "combined_" + "+".join(r.name.split("_")[0] for r in run_dirs)
+    sel = "all" if not drop else "drop_" + "-".join(sorted(d.replace("/", "_").removeprefix("img_") for d in drop))
+    out = REPO_ROOT / "data" / "derived" / name / sel
+    out.mkdir(parents=True, exist_ok=True)  # derived data: one folder per view selection
+    result = {"run_ids": [r.name for r in run_dirs], "target": spec.name, "target_spec_sha256": sha256_file(REPO_ROOT / f"config/targets/{spec.name}.yaml"),
               "units": "mm (nominal display pitch; scale does not affect intrinsics)", "dropped": sorted(drop),
               "frame": "rawpy full visible frame, no lens corrections (so101.analysis.charuco.load_gray)",
               **cal.as_dict()}  # fmt: skip
@@ -185,7 +192,7 @@ def main() -> None:
     c.add_argument("--count", type=int, default=30, help="hands-free: number of shots")
     c.add_argument("--hold-s", type=float, default=2.0, help="hands-free: keep still this long after the trigger")
     a = sub.add_parser("analyze")
-    a.add_argument("run_dir")
+    a.add_argument("run_dir", nargs="+", help="one or more capture runs (views are combined)")
     a.add_argument("--drop", default="", help="comma-separated image stems to leave out")
     a.add_argument("--focus-m", type=float, default=0.5, help="focus distance, only for the fx/fy plausibility check")
     for p in (c, a):

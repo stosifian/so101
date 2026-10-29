@@ -59,7 +59,7 @@ def calibrate(dets: dict[str, Detection], board: cv2.aruco.CharucoBoard, image_s
     return Intrinsics(image_size, K, dist.ravel(), float(rms), per_view.ravel(), std, names, res, img, obj)
 
 
-def residual_figure(cal: Intrinsics, square_size: float, path, arrow_scale: float = 2000.0) -> None:
+def residual_figure(cal: Intrinsics, square_size: float, path, arrow_scale: float | None = None) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -69,11 +69,14 @@ def residual_figure(cal: Intrinsics, square_size: float, path, arrow_scale: floa
     pts = np.vstack(cal.image_points)
     res = np.vstack(cal.residuals)
     obj = np.vstack(cal.object_points)
+    if arrow_scale is None:  # median arrow ≈ 1.5 % of the image width
+        arrow_scale = float(0.015 * W / max(np.median(np.linalg.norm(res, axis=1)), 1e-6))
+        arrow_scale = float(10 ** (np.round(np.log10(arrow_scale) * 2) / 2))  # 1, 3.2, 10, 32, ...
     fig, ax = plt.subplots(2, 2, figsize=(14, 10))
     a = ax[0, 0]
     a.quiver(pts[:, 0], pts[:, 1], res[:, 0], res[:, 1], np.linalg.norm(res, axis=1), angles="xy", scale_units="xy",
              scale=1 / arrow_scale, cmap="viridis", width=0.0015)  # fmt: skip
-    a.set(xlim=(0, W), ylim=(H, 0), aspect="equal", title=f"residuals in the image (arrows ×{arrow_scale:g})")
+    a.set(xlim=(0, W), ylim=(H, 0), aspect="equal", title=f"residuals in the image (arrows ×{arrow_scale:.0f})")
     a = ax[0, 1]
     # per-corner residuals pooled over views: moiré/glare stuck to the board shows as hot corners
     corner_idx = np.round(obj[:, :2] / square_size).astype(int)
