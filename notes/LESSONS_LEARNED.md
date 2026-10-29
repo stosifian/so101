@@ -29,3 +29,25 @@ The import worked at first only because it ran before iCloud reached the new fil
 **How we found it.** `sys.path` lacked `src/` even though the `.pth` existed and had the right content, so the `.pth` was being ignored. `ls -lO` showed `hidden`. `chflags nohidden` fixed the import until the next run re-hid it. A bare `touch .hidtest/a.pth` turned hidden within ~1 s, which pinned it on iCloud rather than uv.
 **The fix.** Moved the repo out of iCloud to `~/dev/so101`. That fixes the venv, and it also keeps Phase 2 RAW data off iCloud and keeps `.git` from being synced file by file.
 **Takeaway.** Don't keep Python projects (or any `.venv`) under iCloud-synced `~/Desktop` or `~/Documents`. If an installed package "isn't there" on macOS, check `ls -lO` on its `.pth` for the `hidden` flag.
+
+## 3. The camera that "couldn't be claimed"
+
+*Logged 2026-10-28, Phase 2 (tethering).*
+
+**Symptom.** `gphoto2 --summary` failed with "Could not claim the USB device (-53)", although the same setup had captured 50/50 earlier.
+**What was going on.** macOS's `ptpcamerad` had taken the camera. Photos.app was open (it had been used to AirDrop the calibration pattern), and it keeps that daemon alive.
+**Why it happens.** Only one process can own a PTP device. macOS starts `ptpcamerad` for Photos/Image Capture whenever a camera appears, and it wins the race.
+**How we found it.** `pgrep -lf "ptpcamerad|Photos"` listed both.
+**The fix.** Quit Photos, `killall ptpcamerad`, retry (replug if it comes back).
+**Takeaway.** Before tethering: no Photos/Image Capture open. The capture code prints this hint on error -53.
+
+## 4. Drift blamed on the camera that was the target moving
+
+*Logged 2026-10-28, Phase 2 (stability check).*
+
+**Symptom.** A static iPad board drifted 0.6 px over a minute, with a 52″ in-plane rotation.
+**What was going on.** The iPad moved within the scene (stepwise, back and forth). The camera was steady.
+**Why it happens.** Corner tracking on one target can't tell whether the camera or the target moved; both shift the target in the image.
+**How we found it.** I first attributed it to camera roll, from the rotation alone. The user noted that real creep would look like a trend, not jumps. Phase correlation of static background tiles showed the camera within ±0.15 px while the board moved +0.57 px relative to the scene.
+**The fix.** `stability_check.py` now tracks the background and reports board − background.
+**Takeaway.** Always measure a reference that moves only with the camera before blaming the camera, and check the time series before naming a mechanism.
