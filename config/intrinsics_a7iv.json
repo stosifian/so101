@@ -1,0 +1,265 @@
+{
+  "run_ids": [
+    "20261028-170956_intrinsics_camera",
+    "20261028-172433_intrinsics_camera"
+  ],
+  "target": "ipad_charuco",
+  "target_spec_sha256": "651cef3850dfc917050e8f6de005a871ceb1f87041d18d6f9159f636aa076153",
+  "units": "mm (nominal display pitch; scale does not affect intrinsics)",
+  "dropped": [
+    "20261028-170956_intrinsics_camera/img_0024",
+    "20261028-172433_intrinsics_camera/img_0003"
+  ],
+  "frame": "rawpy full visible frame, no lens corrections (so101.analysis.charuco.load_gray)",
+  "image_size": [
+    7028,
+    4688
+  ],
+  "K": [
+    [
+      7007.401321957378,
+      0.0,
+      3527.5342296692024
+    ],
+    [
+      0.0,
+      7006.220572697924,
+      2319.335822124482
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "dist": {
+    "k1": -0.026873541708670626,
+    "k2": 0.09816529122205016,
+    "p1": -0.0007268181320039769,
+    "p2": -0.0005717520730589332,
+    "k3": 0.1544197298949602
+  },
+  "fx": 7007.401321957378,
+  "fy": 7006.220572697924,
+  "cx": 3527.5342296692024,
+  "cy": 2319.335822124482,
+  "rms_px": 0.1661186313110732,
+  "std": {
+    "fx": 1.4982231417633773,
+    "fy": 1.4573234586005381,
+    "cx": 0.5705431169732653,
+    "cy": 0.8718195272905953,
+    "k1": 0.0002727057101081084,
+    "k2": 0.001779965991212933,
+    "p1": 2.928295848476044e-05,
+    "p2": 2.5828985543909625e-05,
+    "k3": 0.0040637589879564395
+  },
+  "views": [
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0000",
+      "rms_px": 0.1529109587793355,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0001",
+      "rms_px": 0.1900164541048921,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0002",
+      "rms_px": 0.21243745777957357,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0003",
+      "rms_px": 0.08130725981599156,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0004",
+      "rms_px": 0.33645807324016064,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0005",
+      "rms_px": 0.10290236969692503,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0006",
+      "rms_px": 0.11589786223162064,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0007",
+      "rms_px": 0.09801604398290818,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0008",
+      "rms_px": 0.08442107358237358,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0009",
+      "rms_px": 0.09016483274943678,
+      "n_corners": 79
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0010",
+      "rms_px": 0.14466994109668696,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0011",
+      "rms_px": 0.14880382680864082,
+      "n_corners": 34
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0012",
+      "rms_px": 0.15016044474248771,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0013",
+      "rms_px": 0.12811630265714408,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0014",
+      "rms_px": 0.13840594512137375,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0015",
+      "rms_px": 0.1273442770591571,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0016",
+      "rms_px": 0.09232493095268622,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0017",
+      "rms_px": 0.10915130031893316,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0018",
+      "rms_px": 0.11859462454092985,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0019",
+      "rms_px": 0.13389375519542862,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0020",
+      "rms_px": 0.13588967445982278,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0021",
+      "rms_px": 0.20771109336569957,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0023",
+      "rms_px": 0.24055896615784458,
+      "n_corners": 57
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0025",
+      "rms_px": 0.2227792191598851,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0026",
+      "rms_px": 0.11578203014381665,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0027",
+      "rms_px": 0.07564286697312032,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0028",
+      "rms_px": 0.20094022389509145,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-170956_intrinsics_camera/img_0029",
+      "rms_px": 0.09684906809535469,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0000",
+      "rms_px": 0.15027026659659382,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0001",
+      "rms_px": 0.11653711124781588,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0002",
+      "rms_px": 0.16217471637731262,
+      "n_corners": 80
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0004",
+      "rms_px": 0.17883134132956463,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0006",
+      "rms_px": 0.17312639427971538,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0007",
+      "rms_px": 0.15802845754034148,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0008",
+      "rms_px": 0.2667911919876175,
+      "n_corners": 64
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0009",
+      "rms_px": 0.24226026151482175,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0010",
+      "rms_px": 0.15382362626442594,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0011",
+      "rms_px": 0.16201735332701625,
+      "n_corners": 96
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0012",
+      "rms_px": 0.2628032589025235,
+      "n_corners": 94
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0013",
+      "rms_px": 0.23262152391840804,
+      "n_corners": 83
+    },
+    {
+      "image": "20261028-172433_intrinsics_camera/img_0014",
+      "rms_px": 0.14837060381238548,
+      "n_corners": 96
+    }
+  ]
+}

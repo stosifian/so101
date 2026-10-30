@@ -8,6 +8,7 @@ Written as JSON lines while the run goes (crash-safe), one file per run: data/ra
 
 import json
 import time
+from pathlib import Path
 
 from so101.hw.arm import ArmSnapshot
 from so101.runlog.run import Run
@@ -54,3 +55,14 @@ class Manifest:
 def read_manifest(path) -> tuple[dict, list[dict]]:
     lines = [json.loads(x) for x in open(path)]
     return lines[0], [x for x in lines if x.get("type") == "pose"]
+
+
+def capture_times(run_dir) -> dict[str, float]:
+    """Camera runs: image name -> seconds since the first capture request."""
+    t = {}
+    for m in read_manifest(Path(run_dir) / "manifest.jsonl")[1]:
+        if m["camera"]["ok"]:
+            for f in m["camera"]["files"]:
+                t[Path(f).name] = m["camera"]["t_request_ns"]
+    t0 = min(t.values())
+    return {k: (v - t0) / 1e9 for k, v in t.items()}

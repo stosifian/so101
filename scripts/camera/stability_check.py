@@ -34,7 +34,7 @@ from rich.table import Table
 from so101.analysis.apriltag import detect_tags
 from so101.analysis.charuco import CharucoSpec, detect, load_gray, load_linear, to_display
 from so101.config import REPO_ROOT
-from so101.runlog.manifest import Manifest
+from so101.runlog.manifest import Manifest, capture_times
 from so101.runlog.run import Run
 from so101.sensors import Gphoto2Camera, MockCamera
 
@@ -134,18 +134,6 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
     names = {"charuco": "charuco", "checker": f"checker {pattern[0]}x{pattern[1]}",
              "apriltag": f"apriltag 36h11 ids {sorted({i // 4 for i in pts[0]})}"}  # fmt: skip
     return {"board": names[kind], "n_corners": len(pts[0]), "images": rows}
-
-
-def capture_times(run_dir: Path) -> dict[str, float]:
-    """image name -> seconds since the first capture request (from the manifest)."""
-    t = {}
-    for line in open(run_dir / "manifest.jsonl"):
-        m = json.loads(line)
-        if m.get("type") == "pose" and m["camera"]["ok"]:
-            for f in m["camera"]["files"]:
-                t[Path(f).name] = m["camera"]["t_request_ns"]
-    t0 = min(t.values())
-    return {k: (v - t0) / 1e9 for k, v in t.items()}
 
 
 def plot(result: dict, times: dict[str, float], path: Path) -> None:
