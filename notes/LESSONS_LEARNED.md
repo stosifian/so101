@@ -52,3 +52,14 @@ The import worked at first only because it ran before iCloud reached the new fil
 **How we found it.** I first attributed it to camera roll, from the rotation alone. The user noted that real creep would look like a trend, not jumps. Phase correlation of static background tiles showed the camera within ±0.15 px while the board moved +0.57 px relative to the scene.
 **The fix.** `stability_check.py` now tracks the background and reports board − background.
 **Takeaway.** Always measure a reference that moves only with the camera before blaming the camera, and check the time series before naming a mechanism.
+
+## 5. The camera-motion correction that had the wrong sign
+
+*Logged 2026-10-30, Phase 2 step 5b(a).*
+
+**Symptom.** In a 30-min static run the gripper tag drifted −1.25 px in y while the "static background" reportedly drifted +1.44 px, so "tag minus background" said the tag moved −2.7 px (≈ 0.3 mm) with the arm unpowered.
+**What was going on.** The camera moved; tag and background moved together. The background estimate had its sign flipped.
+**Why it happens.** `cv2.phaseCorrelate(a, b)` returns how far the content moved from `a` to `b`. The code assumed the opposite convention and negated it. With a still camera (bg ≈ 0) the bug is invisible, which is why the 10-28 runs looked right.
+**How we found it.** The new PnP pipeline measures the iPad and the tag independently in the camera frame: both shifted ~+100 µm x / −130 µm y together. That contradicted the background tracker. A synthetic 2 px shift confirmed the convention.
+**The fix.** Removed the negation; the line now documents the convention.
+**Takeaway.** Check every sign convention against a synthetic known shift, and validate a correction against an independent measurement before trusting a difference of two large numbers.

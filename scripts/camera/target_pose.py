@@ -109,7 +109,7 @@ def plot(t_min: np.ndarray, dp: np.ndarray, dr: np.ndarray, sd: np.ndarray, rows
     tag_rms = np.array([r["tag"].rms_px if "tag" in r else np.nan for r in rows])
     ipad_rms = np.array([r["ipad"].rms_px if "ipad" in r else np.nan for r in rows])
     panels = [(f"{what}: Δ position, lateral (µm; band = predicted ±1σ)", [("x", dp[:, 0], sd[:, 3], blue), ("y", dp[:, 1], sd[:, 4], orange)]),
-              (f"{what}: Δ position, depth along the line of sight (µm)", [("z", dp[:, 2], sd[:, 5], green)]),
+              (f"{what}: Δ position, depth = camera z (µm)", [("z", dp[:, 2], sd[:, 5], green)]),
               (f"{what}: Δ rotation (arcsec, about camera axes)", [("x", dr[:, 0], sd[:, 0], blue), ("y", dr[:, 1], sd[:, 1], orange), ("z", dr[:, 2], sd[:, 2], green)]),
               ("reprojection RMS (px)", [("tag", tag_rms, None, blue), ("iPad", ipad_rms, None, orange)])]  # fmt: skip
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 2.6 * len(panels)), sharex=True)
@@ -194,7 +194,7 @@ def main() -> None:
         pred = float(np.nanmedian(sd[:, j]))
         unit = "″" if n.startswith("r") else "µm"
         summary[n] = {"observed_sd": float(np.nanstd(y, ddof=1)), "pred_sigma": pred, "trend_per_h": slope, "scatter": scat}
-        summ.add_row(n, unit, f"{summary[n]['observed_sd']:.1f}", f"{pred:.1f}", f"{slope:+.1f}", f"{scat:.1f}")
+        summ.add_row(n, unit, f"{summary[n]['observed_sd']:.1f}", f"{pred:.1f}", *(("—", "—") if np.isnan(slope) else (f"{slope:+.1f}", f"{scat:.1f}")))
     console.print(summ)
 
     out_dir = REPO_ROOT / "data" / "derived" / args.run_dir.name

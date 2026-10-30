@@ -1,0 +1,10 @@
+# Phase 2 step 5b(b): hold one loaded measurement pose with torque on, then park (D8).
+# Run with scripts/motion/pose_tour.py --tour config/tours/hold_ready.yaml (same planner, table checks and trips).
+# dwell_s = the hold at `ready`: 2 min settle + 21 camera shots at 90 s (31.5 min) + margin. --dwell-s overrides it
+# (e.g. --dwell-s 5 for a quick --sim check). Parks before torque-off, so the arm never drops from the raised pose.
+# Ctrl-C during the hold = freeze (still holding); a second Ctrl-C = torque off: support the arm first.
+speed: 150          # peak ticks/s
+dwell_s: 2100       # hold at ready (35 min)
+waypoints:
+  - {name: ready, pos_m: [0.25, 0.00, 0.14], approach: [0.707, 0.0, -0.707]}
+  - {name: park,  start_pose: true, dwell_s: 0}   # back to the starting pose; then holds until Ctrl-C (--hold-at-end)

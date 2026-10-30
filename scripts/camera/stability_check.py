@@ -83,9 +83,10 @@ def background_shifts(files: list[Path], board_xy: np.ndarray, tile: int = 512, 
         a = g0[y : y + tile, x : x + tile]
         if a.std() < 5:  # featureless
             continue
+        # phaseCorrelate(a, b) = how far the content moved from a to b (checked on a synthetic shift, 2026-10-30)
         v = [cv2.phaseCorrelate(a, g[y : y + tile, x : x + tile], win) for g in imgs[1:]]
         if np.mean([r for _, r in v]) >= min_peak:
-            per_tile.append([(0.0, 0.0)] + [(-dx, -dy) for (dx, dy), _ in v])
+            per_tile.append([(0.0, 0.0)] + [(dx, dy) for (dx, dy), _ in v])
     return np.median(np.array(per_tile), axis=0) if per_tile else None
 
 
