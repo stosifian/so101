@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 910 930" role="img" aria-label="Completed flow from a RAW camera frame through tag detection, edge-line corner refinement and PnP to the tag's pose relative to the iPad board, with the iPad board solved in parallel from the same frame and the camera intrinsics feeding both PnP solves.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text class="d" x="290" y="19">all stages implemented · T a←b = pose of b expressed in a</text>
+        <!-- 1 capture -->
+        <rect class="built" x="290" y="40" width="600" height="58" rx="5"/>
+        <text class="t" x="306" y="62">1 · Capture</text>
+        <text class="d" x="306" y="80">gphoto2 → RAW .ARW, 7028 × 4688 px · f/11, 1/30 s, focus taped · host monotonic timestamp</text>
+        <text class="d" x="306" y="93">one frame holds both tag 2 (on the gripper) and the iPad ChArUco board</text>
+        <line class="edge" x1="590" y1="98" x2="590" y2="128" marker-end="url(#ah)"/>
+
+        <!-- 2 decode -->
+        <rect class="built" x="290" y="130" width="600" height="58" rx="5"/>
+        <text class="t" x="306" y="152">2 · Decode RAW (rawpy, no lens corrections)</text>
+        <text class="d" x="306" y="170">linear 16-bit gray, gamma 1: brightness ∝ light, used for edge fitting</text>
+        <text class="d" x="306" y="183">8-bit gamma copy: what the detectors expect</text>
+        <line class="edge" x1="430" y1="188" x2="430" y2="218" marker-end="url(#ah)"/>
+        <text class="lab" x="438" y="207">8-bit</text>
+        <line class="edge" x1="750" y1="188" x2="750" y2="218" marker-end="url(#ah)"/>
+        <text class="lab" x="758" y="207">8-bit</text>
+        <polyline class="edge" points="290,165 268,165 268,345 288,345" marker-end="url(#ah)"/>
+        <text class="lab" x="214" y="262">linear</text>
+
+        <!-- 3 detect -->
+        <rect class="built" x="290" y="220" width="280" height="70" rx="5"/>
+        <text class="t" x="306" y="242">3 · Detect tag (OpenCV)</text>
+        <text class="d" x="306" y="260">tag36h11 → ID 2 (--tag-ids)</text>
+        <text class="d" x="306" y="276">4 rough corners, ~1 px</text>
+        <rect class="built" x="610" y="220" width="280" height="70" rx="5"/>
+        <text class="t" x="626" y="242">ChArUco detect (OpenCV)</text>
+        <text class="d" x="626" y="260">iPad board: up to 96 corners by ID</text>
+        <text class="d" x="626" y="276">checker saddles, ~0.05 px</text>
+        <line class="edge" x1="430" y1="290" x2="430" y2="318" marker-end="url(#ah)"/>
+        <text class="lab" x="438" y="308">ID + rough corners</text>
+        <polyline class="edge" points="870,290 870,428" marker-end="url(#ah)"/>
+        <text class="lab" x="812" y="412">corners</text>
+
+        <!-- 4 refine / intrinsics / stability -->
+        <rect class="built" x="290" y="320" width="280" height="70" rx="5"/>
+        <text class="t" x="306" y="342">4 · Edge-line refine (ours)</text>
+        <text class="d" x="306" y="360">4 edges × 40 profiles, linear image</text>
+        <text class="d" x="306" y="376">→ 4 corners ±0.02 px + edge RMS</text>
+        <rect class="input" x="610" y="320" width="240" height="70" rx="5"/>
+        <text class="t" x="626" y="342">Intrinsics (step 4)</text>
+        <text class="d" x="626" y="360">fx 7007 · cx 3528 · cy 2319 px</text>
+        <text class="d" x="626" y="376">k1–k3 · valid at taped focus only</text>
+        <rect class="built" x="20" y="320" width="226" height="70" rx="5"/>
+        <text class="t" x="34" y="342">2D stability check</text>
+        <text class="d" x="34" y="360">similarity fit vs image 0</text>
+        <text class="d" x="34" y="376">dx, dy px · rot · scale · bg</text>
+        <line class="edge" x1="290" y1="372" x2="248" y2="372" marker-end="url(#ah)"/>
+        <text class="lab" x="250" y="406">corners</text>
+
+        <line class="edge" x1="430" y1="390" x2="430" y2="428" marker-end="url(#ah)"/>
+        <text class="lab" x="438" y="414">4 corners (px)</text>
+        <line class="edge" x1="730" y1="390" x2="730" y2="428" marker-end="url(#ah)"/>
+        <polyline class="edge" points="640,390 640,410 548,410 548,428" marker-end="url(#ah)"/>
+        <text class="lab" x="652" y="407">K, dist</text>
+
+        <!-- 5 PnP -->
+        <rect class="input" x="20" y="430" width="226" height="70" rx="5"/>
+        <text class="t" x="34" y="452">Tag model</text>
+        <text class="d" x="34" y="470">corners (±L/2, ±L/2, 0) mm</text>
+        <text class="d" x="34" y="486">L = caliper-measured size</text>
+        <line class="edge" x1="246" y1="465" x2="288" y2="465" marker-end="url(#ah)"/>
+        <rect class="built" x="290" y="430" width="280" height="70" rx="5"/>
+        <text class="t" x="306" y="452">5 · Tag PnP</text>
+        <text class="d" x="306" y="470">IPPE_SQUARE → 2 candidate poses</text>
+        <text class="d" x="306" y="486">each refined (Levenberg–Marquardt)</text>
+        <rect class="built" x="610" y="430" width="280" height="70" rx="5"/>
+        <text class="t" x="626" y="452">iPad PnP</text>
+        <text class="d" x="626" y="470">96 corners, mm via display pitch</text>
+        <text class="d" x="626" y="486">big board → precise reference</text>
+        <line class="edge" x1="430" y1="500" x2="430" y2="528" marker-end="url(#ah)"/>
+
+        <!-- 6 choose -->
+        <rect class="built" x="290" y="530" width="280" height="70" rx="5"/>
+        <text class="t" x="306" y="552">6 · Choose + check</text>
+        <text class="d" x="306" y="570">lower reprojection error, continuity</text>
+        <text class="d" x="306" y="586">flag corners at y &gt; 3700 px (uncalibrated)</text>
+        <line class="edge" x1="430" y1="600" x2="430" y2="638" marker-end="url(#ah)"/>
+        <text class="lab" x="438" y="624">T cam←tag</text>
+        <line class="edge" x1="750" y1="500" x2="750" y2="638" marker-end="url(#ah)"/>
+        <text class="lab" x="758" y="575">T cam←ipad</text>
+
+        <!-- 7 relative -->
+        <rect class="built" x="290" y="640" width="600" height="58" rx="5"/>
+        <text class="t" x="306" y="662">7 · Relative pose</text>
+        <text class="d" x="306" y="682">T ipad←tag = (T cam←ipad)⁻¹ · T cam←tag   — camera drift, tripod motion and focal change cancel</text>
+        <line class="edge" x1="590" y1="698" x2="590" y2="728" marker-end="url(#ah)"/>
+        <text class="lab" x="598" y="717">pose per frame</text>
+
+        <!-- 8 time series -->
+        <rect class="built" x="290" y="730" width="600" height="58" rx="5"/>
+        <text class="t" x="306" y="752">8 · Time series</text>
+        <text class="d" x="306" y="772">x, y, z in µm and rx, ry, rz in arcsec vs frame 0 · 1σ per axis from the PnP covariance</text>
+        <line class="edge" x1="590" y1="788" x2="590" y2="818" marker-end="url(#ah)"/>
+
+        <!-- 9 later -->
+        <rect class="input" x="20" y="820" width="226" height="80" rx="5"/>
+        <text class="t" x="34" y="842">Joint ticks</text>
+        <text class="d" x="34" y="860">Present_Position → FK(q)</text>
+        <text class="d" x="34" y="876">(Phase 1 kinematics)</text>
+        <line class="edge" x1="246" y1="860" x2="288" y2="860" marker-end="url(#ah)"/>
+        <rect class="built" x="290" y="820" width="600" height="80" rx="5"/>
+        <text class="t" x="306" y="842">9 · Arm comparison (steps 8–10)</text>
+        <text class="d" x="306" y="862">measured T ipad←tag  vs  T ipad←base · FK(q) · T tool←tag</text>
+        <text class="d" x="306" y="878">the two constant transforms are fitted over many poses;</text>
+        <text class="d" x="306" y="892">what is left over is the arm's error (repeatability, sag, accuracy)</text>
+      </svg>

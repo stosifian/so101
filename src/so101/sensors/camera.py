@@ -126,7 +126,7 @@ class Gphoto2Camera:
 
 def hint(stderr: str) -> str:
     if "Could not claim the USB device" in stderr or "-53" in stderr:
-        return " [hint: macOS's ptpcamerad holds the camera: `killall ptpcamerad`, then retry]"
+        return " [hint: macOS's ptpcamerad holds the camera: quit Photos, Image Capture and Preview, `killall ptpcamerad`, then retry]"
     if "No camera found" in stderr or "-105" in stderr:
         return " [hint: camera off/asleep, or USB Connection is not 'PC Remote']"
     return ""

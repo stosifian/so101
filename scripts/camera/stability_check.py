@@ -2,11 +2,15 @@
 
     uv run scripts/camera/stability_check.py                    # 12 captures, 5 s apart (~6 s: capture takes 5.9 s), iPad ChArUco
     uv run scripts/camera/stability_check.py --board checker    # plain 9x6 checkerboard (--cols/--rows)
+    uv run scripts/camera/stability_check.py --board apriltag --tag-ids 2   # AprilTag(s), e.g. the gripper tag
     uv run scripts/camera/stability_check.py -n 41 --interval 90        # 1 h (step 5 rig stability)
     uv run scripts/camera/stability_check.py --analyze data/raw/<run_id>   # re-analyze an existing run's images
 
 Does not touch the arm. Nothing may move between captures (camera, tripod, iPad, table).
 ChArUco corners are matched by ID, so a partly hidden board still works (only corners seen in both images count).
+AprilTag mode: the 4 outer corners of each tag (36h11), edge-line refined on the linear (gamma 1) image
+(so101.analysis.apriltag); matched by tag ID (corner key = 4·id + k). One tag = 4 corners, so rotation/scale
+are noisier than with the iPad's 96 corners; "edge" = RMS of edge points about their fitted lines (print/flatness).
 Per image vs image 0: mean shift (dx, dy) = whole-scene motion (tripod/iPad/table); a similarity fit splits off
 in-plane rotation (arcsec; camera roll on its head shows here) and scale (ppm; distance change); the residual
 after the similarity fit = corner-detection noise. "bg" = median shift of static-scene tiles outside the board
@@ -27,11 +31,21 @@ import rawpy
 from rich.console import Console
 from rich.table import Table
 
-from so101.analysis.charuco import CharucoSpec, detect, load_gray
+from so101.analysis.apriltag import detect_tags
+from so101.analysis.charuco import CharucoSpec, detect, load_gray, load_linear, to_display
 from so101.config import REPO_ROOT
 from so101.runlog.manifest import Manifest
 from so101.runlog.run import Run
 from so101.sensors import Gphoto2Camera, MockCamera
+
+
+def tag_corners(path: Path, tag_ids: list[int] | None) -> tuple[dict[int, np.ndarray], float] | None:
+    """AprilTag corners: key 4·id + k -> (x, y), and the worst tag's edge RMS (px)."""
+    lin = load_linear(path)
+    tags = detect_tags(to_display(lin), ids=tag_ids, linear=lin)
+    if not tags:
+        return None
+    return {4 * i + k: t.corners[k] for i, t in tags.items() for k in range(4)}, max(t.edge_rms for t in tags.values())
 
 
 def corners(path: Path, board, pattern: tuple[int, int]) -> dict[int, np.ndarray] | None:
@@ -75,22 +89,29 @@ def background_shifts(files: list[Path], board_xy: np.ndarray, tile: int = 512, 
     return np.median(np.array(per_tile), axis=0) if per_tile else None
 
 
-def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console) -> dict:
-    pts = [corners(f, board, pattern) for f in files]
+def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console, tag_ids: list[int] | None = None,
+            kind: str = "charuco") -> dict:  # fmt: skip
+    edge = [None] * len(files)
+    if kind == "apriltag":
+        got = [tag_corners(f, tag_ids) for f in files]
+        pts = [None if g is None else g[0] for g in got]
+        edge = [None if g is None else g[1] for g in got]
+    else:
+        pts = [corners(f, board, pattern) for f in files]
     if pts[0] is None:
-        sys.exit(f"no board found in {files[0].name}")
+        sys.exit(f"no {kind} target found in {files[0].name}")
     rows = []
     t = Table(title=f"drift vs image 0 (px; 1 px ≈ 0.14 mm × distance in m). resid = after shift+rot+scale; bg = static scene (camera); rel = board − bg", title_justify="left")
     bg = background_shifts(files, np.array(list(pts[0].values())))
     if bg is None:
         console.print("[yellow]no trackable static background (scene too dark or featureless): camera vs board motion "
                       "can't be separated in this run. Light the static scene (not the board) next time.")  # fmt: skip
-    for col in ["#", "n", "dx", "dy", "rot ″", "ppm", "resid", "bg dx", "bg dy", "rel dx", "rel dy"]:
+    for col in ["#", "n", "dx", "dy", "rot ″", "ppm", "resid", "bg dx", "bg dy", "rel dx", "rel dy"] + (["edge"] if kind == "apriltag" else []):
         t.add_column(col, justify="right")
     for k, (f, p) in enumerate(zip(files, pts)):
         if p is None:
             rows.append({"image": f.name, "found": False})
-            t.add_row(str(k), "[red]none", *[""] * 9)
+            t.add_row(str(k), "[red]none", *[""] * (10 if kind == "apriltag" else 9))
             continue
         ids = sorted(set(p) & set(pts[0]))
         d = np.array([p[i] - pts[0][i] for i in ids])
@@ -104,11 +125,15 @@ def analyze(files: list[Path], board, pattern: tuple[int, int], console: Console
              "shift": float(np.hypot(*shift)), "rot_arcsec": rot_as, "scale_ppm": scale_ppm, "residual_rms": float(np.sqrt((res**2).mean())), "residual_max": float(res.max())}  # fmt: skip
         b = bg[k] if bg is not None else (np.nan, np.nan)
         r.update(bg_dx=float(b[0]), bg_dy=float(b[1]), rel_dx=float(shift[0] - b[0]), rel_dy=float(shift[1] - b[1]))
+        if edge[k] is not None:
+            r["edge_rms"] = edge[k]
         rows.append(r)
         t.add_row(str(k), str(len(ids)), f"{r['dx']:+.3f}", f"{r['dy']:+.3f}", f"{rot_as:+.1f}", f"{scale_ppm:+.1f}", f"{r['residual_rms']:.3f}",
-                  f"{b[0]:+.3f}", f"{b[1]:+.3f}", f"{r['rel_dx']:+.3f}", f"{r['rel_dy']:+.3f}")
+                  f"{b[0]:+.3f}", f"{b[1]:+.3f}", f"{r['rel_dx']:+.3f}", f"{r['rel_dy']:+.3f}", *([f"{edge[k]:.3f}"] if edge[k] is not None else []))
     console.print(t)
-    return {"board": "charuco" if board is not None else f"checker {pattern[0]}x{pattern[1]}", "n_corners": len(pts[0]), "images": rows}
+    names = {"charuco": "charuco", "checker": f"checker {pattern[0]}x{pattern[1]}",
+             "apriltag": f"apriltag 36h11 ids {sorted({i // 4 for i in pts[0]})}"}  # fmt: skip
+    return {"board": names[kind], "n_corners": len(pts[0]), "images": rows}
 
 
 def capture_times(run_dir: Path) -> dict[str, float]:
@@ -138,7 +163,8 @@ def plot(result: dict, times: dict[str, float], path: Path) -> None:
               ("board relative to background (px)", [("dx", g("rel_dx"), blue), ("dy", g("rel_dy"), orange)]),
               ("board in-plane rotation (arcsec)", [(None, g("rot_arcsec"), blue)]),
               ("board scale (ppm; + = closer)", [(None, g("scale_ppm"), blue)]),
-              ("detection residual RMS (px; image 0 is the reference)", [(None, np.where(t == 0, np.nan, g("residual_rms")), blue)])]  # fmt: skip
+              ("detection residual RMS (px; image 0 is the reference)", [(None, np.where(t == 0, np.nan, g("residual_rms")), blue)]),
+              ("tag edge-line RMS (px; worst tag)", [(None, g("edge_rms"), blue)])]  # fmt: skip
     panels = [p for p in panels if any(np.isfinite(y[1:]).any() for _, y, _ in p[1])]  # drop panels with no data (e.g. no background)
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 2.3 * len(panels)), sharex=True)
     for a, (title, series) in zip(axes, panels):
@@ -163,7 +189,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-n", type=int, default=12)
     ap.add_argument("--interval", type=float, default=5.0, help="s between capture starts")
-    ap.add_argument("--board", choices=["charuco", "checker"], default="charuco")
+    ap.add_argument("--board", choices=["charuco", "checker", "apriltag"], default="charuco")
+    ap.add_argument("--tag-ids", default="", help="apriltag: comma-separated IDs to track (default: all found)")
     ap.add_argument("--target", default="ipad_charuco", help="ChArUco spec in config/targets/")
     ap.add_argument("--cols", type=int, default=9, help="inner corners across")
     ap.add_argument("--rows", type=int, default=6, help="inner corners down")
@@ -174,12 +201,14 @@ def main() -> None:
     console = Console()
     pattern = (args.cols, args.rows)
     board = CharucoSpec.load(args.target).board() if args.board == "charuco" else None
+    tag_ids = [int(x) for x in args.tag_ids.split(",") if x] or None
+    run_analysis = lambda fs: analyze(fs, board, pattern, console, tag_ids, args.board)  # noqa: E731
 
     if args.analyze:
         files = sorted((args.analyze / "images").glob("*.ARW"))
         if not files:
             sys.exit(f"no .ARW files in {args.analyze}/images")
-        result = analyze(files, board, pattern, console)  # read-only: raw run directories are immutable
+        result = run_analysis(files)  # read-only: raw run directories are immutable
         out = REPO_ROOT / "data" / "derived" / args.analyze.name / "stability.png"
         plot(result, capture_times(args.analyze), out)
         console.print(f"wrote {out.relative_to(REPO_ROOT)}")
@@ -188,7 +217,7 @@ def main() -> None:
     cam = MockCamera() if args.mock else Gphoto2Camera()
     info = cam.info()
     run = Run("stability_mock" if args.mock else "stability", "camera",
-              notes=f"static {args.board} stability n={args.n} interval={args.interval}; {args.notes}")  # fmt: skip
+              notes=f"static {args.board}{' ids ' + args.tag_ids if args.tag_ids else ''} stability n={args.n} interval={args.interval}; {args.notes}")  # fmt: skip
     run.write_json("camera.json", info)
     manifest = Manifest(run, "stability")
     files, streak = [], 0
@@ -211,7 +240,7 @@ def main() -> None:
         return
     if not files:
         sys.exit("no images captured")
-    result = analyze(files, board, pattern, console)
+    result = run_analysis(files)
     run.write_json("stability.json", result)
     out = REPO_ROOT / "data" / "derived" / run.run_id / "stability.png"
     plot(result, capture_times(run.dir), out)

@@ -91,6 +91,22 @@ def load_gray(path: Path) -> np.ndarray:
     return cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
 
 
+def load_linear(path: Path) -> np.ndarray:
+    """RAW → float32 gray proportional to light (gamma 1, 16-bit, camera WB, no auto-brightness, no lens
+    corrections; same frame as `load_gray`). For edge-based sub-pixel work: a gamma curve moves an edge's
+    mid-level crossing towards the dark side by a blur-dependent amount (0.2-0.6 px on a tag edge)."""
+    import rawpy
+
+    with rawpy.imread(str(path)) as r:
+        rgb = r.postprocess(no_auto_bright=True, use_camera_wb=True, output_bps=16, gamma=(1, 1))
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+
+
+def to_display(linear: np.ndarray) -> np.ndarray:
+    """Linear gray (`load_linear`) → 8-bit with a 2.2 gamma, close to `load_gray`, for detectors that expect it."""
+    return np.clip(255 * (linear / 65535) ** (1 / 2.222), 0, 255).astype(np.uint8)
+
+
 @dataclass
 class Detection:
     ids: np.ndarray  # (N,) ChArUco corner ids

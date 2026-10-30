@@ -39,7 +39,8 @@ The import worked at first only because it ran before iCloud reached the new fil
 **Why it happens.** Only one process can own a PTP device. macOS starts `ptpcamerad` for Photos/Image Capture whenever a camera appears, and it wins the race.
 **How we found it.** `pgrep -lf "ptpcamerad|Photos"` listed both.
 **The fix.** Quit Photos, `killall ptpcamerad`, retry (replug if it comes back).
-**Takeaway.** Before tethering: no Photos/Image Capture open. The capture code prints this hint on error -53.
+**Takeaway.** Before tethering: no Photos, Image Capture or Preview open. The capture code prints this hint on error -53.
+**Recurrence (2026-10-29).** Same error, but this time Preview was open (used for phone photos). While Preview held it, `ptpcamerad` ignored `killall`: the same PID survived for hours. Quitting Preview fixed it. Check `pgrep -lf "ptpcamerad|Photos|Image Capture|Preview"`; a PID that survives `killall` means an app still holds it.
 
 ## 4. Drift blamed on the camera that was the target moving
 
