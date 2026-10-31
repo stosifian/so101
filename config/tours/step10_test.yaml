@@ -1,0 +1,82 @@
+# Step 10 independent test set: the grid points of config/tours/step10_grid.yaml that run 20261030-190841 didn't reach
+# (it froze moving to p39), minus those with shoulder_lift gravity torque > 0.75 N·m (the far-forward band that trips the
+# contact check). Never used in the kinematic fit. 2 shots each; drift references at ready mid-run and at the end.
+speed: 150
+dwell_s: 0
+waypoints:
+- name: ready
+  pos_m: [0.25, 0.0, 0.14]
+  approach: [0.707, 0.0, -0.707]
+- name: t_p40
+  ticks: {shoulder_pan: 2222, shoulder_lift: 2230, elbow_flex: 1998, wrist_flex: 2185,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p41_r-25
+  ticks: {shoulder_pan: 2220, shoulder_lift: 2217, elbow_flex: 2007, wrist_flex: 1927,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p42_r-25
+  ticks: {shoulder_pan: 2222, shoulder_lift: 1799, elbow_flex: 2343, wrist_flex: 2055,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p43
+  ticks: {shoulder_pan: 2066, shoulder_lift: 1856, elbow_flex: 2305, wrist_flex: 2021,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p44_r-25
+  ticks: {shoulder_pan: 1922, shoulder_lift: 2006, elbow_flex: 2203, wrist_flex: 1968,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p45_r-25
+  ticks: {shoulder_pan: 1974, shoulder_lift: 2366, elbow_flex: 1745, wrist_flex: 2094,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p46_r-25
+  ticks: {shoulder_pan: 1922, shoulder_lift: 2043, elbow_flex: 2140, wrist_flex: 2303,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p47
+  ticks: {shoulder_pan: 1924, shoulder_lift: 2176, elbow_flex: 2341, wrist_flex: 1966,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p48
+  ticks: {shoulder_pan: 1975, shoulder_lift: 2708, elbow_flex: 1896, wrist_flex: 1895,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p49_r-25
+  ticks: {shoulder_pan: 2220, shoulder_lift: 2687, elbow_flex: 2125, wrist_flex: 1599,
+    wrist_roll: 852, gripper: 2082}
+  shots: 2
+- name: t_p50_r+25
+  ticks: {shoulder_pan: 2221, shoulder_lift: 2348, elbow_flex: 2043, wrist_flex: 2136,
+    wrist_roll: 1422, gripper: 2082}
+  shots: 2
+- name: t_p52
+  ticks: {shoulder_pan: 2094, shoulder_lift: 2384, elbow_flex: 1597, wrist_flex: 2607,
+    wrist_roll: 1136, gripper: 2082}
+  shots: 2
+- name: t_p53_r-25
+  ticks: {shoulder_pan: 2348, shoulder_lift: 2263, elbow_flex: 1971, wrist_flex: 2179,
+    wrist_roll: 854, gripper: 2082}
+  shots: 2
+- name: t_p54
+  ticks: {shoulder_pan: 2349, shoulder_lift: 2256, elbow_flex: 1966, wrist_flex: 1906,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p55
+  ticks: {shoulder_pan: 2468, shoulder_lift: 2382, elbow_flex: 1828, wrist_flex: 1893,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: t_p58_r+25
+  ticks: {shoulder_pan: 2604, shoulder_lift: 1613, elbow_flex: 2493, wrist_flex: 2028,
+    wrist_roll: 1422, gripper: 2082}
+  shots: 2
+- name: t_p59
+  ticks: {shoulder_pan: 2434, shoulder_lift: 1559, elbow_flex: 2361, wrist_flex: 2646,
+    wrist_roll: 1138, gripper: 2082}
+  shots: 2
+- name: ref_end
+  ticks: {shoulder_pan: 2237, shoulder_lift: 1677, elbow_flex: 2257, wrist_flex: 2833,
+    wrist_roll: 1138}
+  shots: 2
+- {name: park, start_pose: true, dwell_s: 0}

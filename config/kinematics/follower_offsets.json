@@ -1,0 +1,179 @@
+{
+ "variant": "offsets",
+ "description": "+ zero offsets of shoulder_lift, elbow_flex",
+ "arm": "follower",
+ "reference": "ipad",
+ "frame_note": "X = T_ref_base (ref = the iPad ChArUco when reference=ipad); Y = T_gripperbody_tag; mm",
+ "tag_mm_nominal": 20.0,
+ "tag_scale": 1.0,
+ "intrinsics": "config/intrinsics_a7iv.json",
+ "fitted_on_runs": [
+  "20261030-190841_capture_follower",
+  "20261030-162649_capture_follower",
+  "20261030-154331_capture_follower",
+  "20261030-170704_capture_follower"
+ ],
+ "tested_on_runs": [
+  "20261030-202915_capture_follower"
+ ],
+ "n_shots": 221,
+ "git_sha_at_fit": "4d7b3e3",
+ "params": {
+  "delta_rad": [
+   0.0,
+   0.025321324226936944,
+   -0.0005471636174765622,
+   0.0,
+   0.0
+  ],
+  "delta_deg": [
+   0.0,
+   1.450805009885849,
+   -0.031350165984517626,
+   0.0,
+   0.0
+  ],
+  "fitted_offset_joints": [
+   "shoulder_lift",
+   "elbow_flex"
+  ],
+  "xi": [
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  ],
+  "link_twists_fitted": false,
+  "compliance_rad_per_Nm": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "compliance_mode": null,
+  "compliance_joints": [
+   "shoulder_lift",
+   "elbow_flex",
+   "wrist_flex"
+  ],
+  "tau_knee_Nm": null
+ },
+ "X_ref_base": {
+  "all": [
+   [
+    0.5584803839747936,
+    0.829505736902409,
+    -0.004460175036782477,
+    -375.5138468785078
+   ],
+   [
+    0.038689902909582075,
+    -0.03141893129773887,
+    -0.998757198807075,
+    151.92911259706403
+   ],
+   [
+    -0.828614960116105,
+    0.5576137401482316,
+    -0.04964035323893434,
+    129.062140171543
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "Y_body_tag": [
+  [
+   -0.9994921014065309,
+   0.029682214831505398,
+   -0.011597644099269517,
+   2.56511766599349
+  ],
+  [
+   0.014043842684948094,
+   0.7369524849107182,
+   0.675798642693634,
+   44.742567633097124
+  ],
+  [
+   0.028606113133339,
+   0.6752925300242953,
+   -0.7369950401358129,
+   -4.0963921129689504
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ],
+ "metrics": {
+  "fit_rms_px": 11.274767421696245,
+  "heldout_rms_mm": [
+   0.9800821671328251,
+   1.0463236311779642,
+   1.4782458935862213
+  ],
+  "heldout_3d_rms_mm": 2.0592632462601146,
+  "heldout_3d_max_mm": 6.601146416059341,
+  "n_theta": 2,
+  "heldout_lateral_rms_mm": 1.4336506532252609,
+  "heldout_sub_mm_3d_shots": 51,
+  "n_shots": 221,
+  "heldout_inner": {
+   "n_shots": 204,
+   "rms_3d_mm": 1.7688613848678763,
+   "lateral_rms_mm": 1.174074768023084
+  },
+  "heldout_far": {
+   "n_shots": 17,
+   "rms_3d_mm": 4.1929583040677,
+   "lateral_rms_mm": 3.190326912795979
+  },
+  "compliance_deg_per_Nm": [
+   0.0,
+   0.0,
+   0.0
+  ]
+ }
+}

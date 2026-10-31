@@ -70,8 +70,17 @@ def main() -> None:
     ap.add_argument("--max-tilt", type=float, default=70.0, help="deg, tag normal vs line of sight (hand-eye; found up to 72°, lost at 78-88°)")
     ap.add_argument("--no-handeye", action="store_true", help="ignore data/derived/handeye/handeye.json (linear fits only)")
     ap.add_argument("--z-min", type=float, default=30.0, help="mm, tool point")
+    ap.add_argument("--rolls", default="0", help="wrist_roll offsets (deg) to try at every position, e.g. 0,-25,25 (step 10: makes roll/wrist offsets observable)")
+    ap.add_argument("--roll-cycle", action="store_true", help="one roll per position, cycling through --rolls (first visible one in that order): more distinct positions for the same count")
+    ap.add_argument("--wrist-alts", type=int, default=1, help="wrist-angle solutions per position and roll (2 = also the next-best visible one, >= 15° apart)")
+    ap.add_argument("--shots", type=int, help="photos per waypoint in the tour file (capture_tour.py)")
+    ap.add_argument("--name", default="step6_sector", help="tour file config/tours/<name>.yaml; outputs data/derived/<name>/ (step6_sector: data/derived/sector_plan/)")
+    ap.add_argument("--overlay", type=Path, help="a previous plan.json whose points are drawn for comparison")
     ap.add_argument("--dwell-s", type=float, default=10.0, help="hold per point in the tour file (capture comes with the step 6 script)")
     args = ap.parse_args()
+    global OUT
+    OUT = OUT if args.name == "step6_sector" else REPO_ROOT / "data" / "derived" / args.name
+    rolls = [float(x) for x in args.rolls.split(",")]
 
     clean, allp = clean_poses(args.runs)
     if len(clean) < 4:
@@ -154,71 +163,89 @@ def main() -> None:
             return f"tag {v['distance_mm']:.0f} mm from the camera, outside taught {d_lo:.0f}-{d_hi:.0f}"
         return ""
 
-    def solve_point(p: np.ndarray) -> tuple[dict | None, str]:
-        """Position-only IK (wrist_roll + gripper held) from several seeds: the nearest clean taught pose with its
-        wrist_flex varied, then the other taught poses. Each solution differs mostly in wrist angle, i.e. in which
-        way the tag faces. With a hand-eye fit: keep the solution that faces the tag most squarely at the camera
-        (in frame, tilt <= --max-tilt, distance in the taught range); without one: the first solution. Then the
-        planner's limit + table check from park."""
+    def solve_point(p: np.ndarray, idx: int = 0) -> tuple[list[tuple[dict, str]], str]:
+        """Position-only IK from several seeds: the nearest clean taught pose with its wrist_flex varied, then the
+        other taught poses; for each --rolls offset (wrist_roll held at the seed's roll + offset). Solutions differ
+        mostly in wrist angle, i.e. in which way the tag faces. With a hand-eye fit: per roll, keep the solution that
+        faces the tag most squarely at the camera (in frame, tilt <= --max-tilt, distance in the taught range), and
+        with --wrist-alts 2 also the best one whose wrist_flex differs by >= 15°; without a fit: the first solution.
+        Each kept solution must pass the planner's limit + table check from park. Returns ([(ticks, suffix)], why)."""
         order = list(np.argsort(np.linalg.norm(P - p, axis=1)))
-        seeds = []
+        base = []
         for k in order[:1]:
             q0 = np.array([mapping.joints[j].to_rad(Q[k][j]) for j in CHAIN_JOINTS])
             for dw in (0, -20, 20, -40, 40, -60, 60):
                 q = q0.copy()
                 q[3] += np.radians(dw)
-                seeds.append((k, q))
-        seeds += [(k, np.array([mapping.joints[j].to_rad(Q[k][j]) for j in CHAIN_JOINTS])) for k in order[1:]]
-        sols, why = [], "IK failed"
-        for k, q0 in seeds:
-            r = solve_ik(chain, p / 1000, q0, lim, fixed={4: q0[4]})
-            if not r.success:
-                continue
-            t = to_ticks(r.q, Q[k])
-            if not pan_lo <= t["shoulder_pan"] <= pan_hi:  # the iPad side: never past the taught pan extremes
-                why = f"shoulder_pan {t['shoulder_pan']} outside the taught range {pan_lo}-{pan_hi}"
-                continue
-            v = view(t)
-            if v is not None and (w := visible(v)):
-                why = w
-                continue
-            sols.append((v["tilt_deg"] if v else 0.0, t, v))
-            if he is None:
+                base.append((k, q))
+        base += [(k, np.array([mapping.joints[j].to_rad(Q[k][j]) for j in CHAIN_JOINTS])) for k in order[1:]]
+        out, why = [], "IK failed"
+        order_r = rolls[idx % len(rolls):] + rolls[: idx % len(rolls)] if args.roll_cycle else rolls
+        for droll in order_r:
+            if args.roll_cycle and out:
                 break
-        for _, t, v in sorted(sols, key=lambda x: x[0]):
-            pl = plan_tour([Waypoint("probe", ticks=t)], PARK, chain=chain, mapping=mapping, limits_ticks=safety.limits,
-                           limits_rad=lim, collision=collision)  # fmt: skip
-            if pl.ok:
-                return t, ""
-            why = pl.reason.replace("probe: ", "")
-        return None, why
+            sols = []
+            for k, q0 in base:
+                q0 = q0.copy()
+                q0[4] += np.radians(droll)
+                r = solve_ik(chain, p / 1000, q0, lim, fixed={4: q0[4]})
+                if not r.success:
+                    continue
+                t = to_ticks(r.q, Q[k])
+                if not pan_lo <= t["shoulder_pan"] <= pan_hi:  # the iPad side: never past the taught pan extremes
+                    why = f"shoulder_pan {t['shoulder_pan']} outside the taught range {pan_lo}-{pan_hi}"
+                    continue
+                v = view(t)
+                if v is not None and (w := visible(v)):
+                    why = w
+                    continue
+                sols.append((v["tilt_deg"] if v else 0.0, t, v))
+                if he is None:
+                    break
+            kept = []
+            for _, t, v in sorted(sols, key=lambda x: x[0]):
+                if len(kept) >= args.wrist_alts:
+                    break
+                if any(abs(t["wrist_flex"] - k2["wrist_flex"]) < 15 / 0.088 for k2 in kept):  # ~15° apart (0.088°/tick)
+                    continue
+                pl = plan_tour([Waypoint("probe", ticks=t)], PARK, chain=chain, mapping=mapping, limits_ticks=safety.limits,
+                               limits_rad=lim, collision=collision)  # fmt: skip
+                if pl.ok:
+                    kept.append(t)
+                else:
+                    why = pl.reason.replace("probe: ", "")
+            for a_i, t in enumerate(kept):
+                sfx = ("" if droll == 0 else f"_r{droll:+.0f}") + ("" if a_i == 0 else f"_w{a_i + 1}")
+                out.append((t, sfx))
+        return out, why
 
-    # spacing: the largest grid step that still yields >= n feasible points
+    # spacing: the largest grid step that still yields >= n feasible waypoints (positions × variants)
     for step in np.arange(110.0, 24.0, -5.0):
         g, why = prefilter(candidates(step))
-        if sum(not w for w in why) < args.n:
+        if sum(not w for w in why) * (1 if args.roll_cycle else len(rolls)) * args.wrist_alts < args.n:
             continue
         rejected, feas = [], []
-        for p, w in zip(g, why):
-            t, w2 = (None, w) if w else solve_point(p)
-            (feas.append((p, t)) if t else rejected.append((p, w or w2)))
-        if len(feas) >= args.n:
+        for i_p, (p, w) in enumerate(zip(g, why)):
+            vs, w2 = ([], w) if w else solve_point(p, i_p)
+            (feas.append((p, vs)) if vs else rejected.append((p, w or w2)))
+        if sum(len(vs) for _, vs in feas) >= args.n:
             break
-    pts = np.array([p for p, _ in feas])
-    tk = [t for _, t in feas]
-    # thin to n by farthest-point sampling (keeps the spread), then order nearest-neighbour from ready
-    if len(pts) > args.n:
-        keep = [int(np.argmin(np.linalg.norm(pts - pts.mean(0), axis=1)))]
-        while len(keep) < args.n:
-            d = np.min(np.linalg.norm(pts[:, None] - pts[keep][None], axis=2), axis=1)
-            keep.append(int(np.argmax(d)))
-        for k in sorted(set(range(len(pts))) - set(keep)):
-            rejected.append((pts[k], "thinned (spacing)"))
-        pts, tk = pts[keep], [tk[k] for k in keep]
+    # thin POSITIONS by farthest-point sampling (keeps the spread) until their variants reach n
+    pos = np.array([p for p, _ in feas])
+    keep = [int(np.argmin(np.linalg.norm(pos - pos.mean(0), axis=1)))]
+    while sum(len(feas[k][1]) for k in keep) < args.n and len(keep) < len(feas):
+        d = np.min(np.linalg.norm(pos[:, None] - pos[keep][None], axis=2), axis=1)
+        d[keep] = -1
+        keep.append(int(np.argmax(d)))
+    for k in sorted(set(range(len(feas))) - set(keep)):
+        rejected.append((pos[k], "thinned (spacing)"))
+    pts = np.array([feas[k][0] for k in keep for _ in feas[k][1]])
+    tk = [t for k in keep for t, _ in feas[k][1]]
+    sfx = [s_ for k in keep for _, s_ in feas[k][1]]
     # order: nearest-neighbour from ready, but each move must pass the planner (joint-space paths can dip toward
     # the table between two fine points); a point no move can reach is dropped
     def wp(i: int) -> Waypoint:
-        return Waypoint(f"p{i:02d}", ticks=tk[i])
+        return Waypoint(f"p{i:02d}{sfx[i]}", ticks=tk[i], shots=args.shots)
 
     ready = Waypoint("ready", pos_m=[0.25, 0.0, 0.14], approach=[0.707, 0.0, -0.707])  # known-good first move off the rest stops (5b(b))
 
@@ -240,8 +267,8 @@ def main() -> None:
             break
     while seq and not plan_of(seq, close=True).ok:  # the last move back to park must pass too
         rejected.append((pts[seq.pop()], "no table-safe move back to park"))
-    pts, tk = pts[seq], [tk[i] for i in seq]
-    wps = [ready] + [Waypoint(f"p{i:02d}", ticks=t) for i, t in enumerate(tk)]
+    pts, tk, sfx = pts[seq], [tk[i] for i in seq], [sfx[i] for i in seq]
+    wps = [ready] + [Waypoint(f"p{i:02d}{sfx[i]}", ticks=t, shots=args.shots) for i, t in enumerate(tk)]
     wps.append(Waypoint("park", start_pose=True, dwell_s=0))
     plan = plan_tour(wps, PARK, chain=chain, mapping=mapping, limits_ticks=safety.limits, limits_rad=lim, collision=collision, dwell_s=args.dwell_s)
     if not plan.ok:
@@ -251,10 +278,11 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     tour = {"speed": 150, "dwell_s": args.dwell_s,
             "waypoints": [{"name": "ready", "pos_m": ready.pos_m, "approach": ready.approach}]
-                         + [{"name": w.name, "ticks": {j: int(v) for j, v in w.ticks.items()}} for w in wps[1:-1]]
+                         + [{"name": w.name, "ticks": {j: int(v) for j, v in w.ticks.items()}, **({"shots": w.shots} if w.shots else {})}
+                            for w in wps[1:-1]]
                          + [{"name": "park", "start_pose": True, "dwell_s": 0}]}  # fmt: skip
-    tour_path = REPO_ROOT / "config" / "tours" / "step6_sector.yaml"
-    header = (f"# Step 6b: {len(pts)} points on an even grid ({step:.0f} mm) inside the spherical sector of the clean hand-taught poses\n"
+    tour_path = REPO_ROOT / "config" / "tours" / f"{args.name}.yaml"
+    header = (f"# {args.name}: {len(pts)} points (rolls {args.rolls}°, wrist alternatives {args.wrist_alts}, shots {args.shots or 1}) on an even grid ({step:.0f} mm) inside the spherical sector of the clean hand-taught poses\n"
               f"# ({', '.join(sorted({p['run'] for p in clean}))}), generated by scripts/sim/plan_sector_tour.py. Joint targets: position-only IK\n# seeded from the nearest clean taught pose (wrist/tag orientation like that pose). Starts at `ready` (the\n# 5b(b) pose: a known table-safe first move off the rest stops, and a repeated sharp reference capture).\n"
               f"# Sector (centre = pan axis at shoulder-lift height, z {centre[2]:.0f} mm): r {lo[0]:.0f}-{hi[0]:.0f} mm, "
               f"azimuth {math.degrees(lo[1]):.1f} to {math.degrees(hi[1]):.1f}°, elevation {math.degrees(lo[2]):.1f} to {math.degrees(hi[2]):.1f}°.\n")  # fmt: skip
@@ -273,7 +301,8 @@ def main() -> None:
         "azimuth_deg": np.degrees([lo[1], hi[1]]).tolist(), "elevation_deg": np.degrees([lo[2], hi[2]]).tolist()},
         "grid_mm": step, "distance_fit": {"coef": coef.tolist(), "sd_mm": fit_sd, "taught_range_mm": [d_lo, d_hi]},
         "points": rows, "rejected": [{"tool_mm": p.round(1).tolist(), "reason": w} for p, w in rejected]}, indent=1))  # fmt: skip
-    plot(allp, clean, rows, rejected, centre, lo, hi, step)
+    overlay = json.loads(args.overlay.read_text())["points"] if args.overlay else None
+    plot(allp, clean, rows, rejected, centre, lo, hi, step, overlay)
 
     print(f"sector: r {lo[0]:.0f}-{hi[0]:.0f} mm, azimuth {math.degrees(lo[1]):.1f} to {math.degrees(hi[1]):.1f}°, "
           f"elevation {math.degrees(lo[2]):.1f} to {math.degrees(hi[2]):.1f}° (centre z {centre[2]:.0f} mm; {len(clean)} clean poses)")
@@ -305,7 +334,7 @@ def sector_edges(centre, lo, hi, n=24) -> list[np.ndarray]:
     return edges
 
 
-def plot(allp, clean, rows, rejected, centre, lo, hi, step) -> None:
+def plot(allp, clean, rows, rejected, centre, lo, hi, step, overlay=None) -> None:
     cls_col = {"sharp": "#1f9e6e", "usable": "#eb8c34", "not usable": "#d43f3a"}
 
     def cls(p):
@@ -331,6 +360,12 @@ def plot(allp, clean, rows, rejected, centre, lo, hi, step) -> None:
     traces.append({"type": "scatter3d", "mode": "lines", "name": "tour order", "x": [r["tool_mm"][0] for r in rows[:-1]],
                    "y": [r["tool_mm"][1] for r in rows[:-1]], "z": [r["tool_mm"][2] for r in rows[:-1]],
                    "line": {"color": "#2a78d6", "width": 2, "dash": "dot"}, "hoverinfo": "skip", "visible": "legendonly"})  # fmt: skip
+    if overlay:
+        ov = [r for r in overlay if r["name"] not in ("ready", "park")]
+        traces.append({"type": "scatter3d", "mode": "markers", "name": f"step 6 tour ({len(ov)})",
+                       "x": [r["tool_mm"][0] for r in ov], "y": [r["tool_mm"][1] for r in ov], "z": [r["tool_mm"][2] for r in ov],
+                       "hovertext": [f"step 6 {r['name']}" for r in ov], "hoverinfo": "text",
+                       "marker": {"size": 5, "color": "#8a5cc2", "symbol": "square", "opacity": 0.7}})  # fmt: skip
     rj = [(p, w) for p, w in rejected]
     traces.append({"type": "scatter3d", "mode": "markers", "name": f"rejected candidates ({len(rj)})",
                    "x": [p[0] for p, _ in rj], "y": [p[1] for p, _ in rj], "z": [p[2] for p, _ in rj],
@@ -342,10 +377,11 @@ def plot(allp, clean, rows, rejected, centre, lo, hi, step) -> None:
                        "line": {"color": "#6b6a63", "width": 2}})  # fmt: skip
     traces.append({"type": "scatter3d", "mode": "markers+text", "name": "base", "x": [0], "y": [0], "z": [0], "text": ["base"],
                    "marker": {"size": 4, "color": "#1f1f1d", "symbol": "diamond"}, "hoverinfo": "name"})  # fmt: skip
-    title = (f"Step 6b plan: {len(rows) - 1} grid points ({step:.0f} mm) in the sector of the {len(clean)} clean taught poses "
+    title = (f"{OUT.name} plan: {len(rows) - 1} grid points ({step:.0f} mm) in the sector of the {len(clean)} clean taught poses "
              f"(r {lo[0]:.0f}-{hi[0]:.0f} mm, az {math.degrees(lo[1]):.0f}…{math.degrees(hi[1]):.0f}°, el {math.degrees(lo[2]):.0f}…{math.degrees(hi[2]):.0f}°)")
     layout = {"title": {"text": title, "font": {"size": 13}}, "margin": {"l": 0, "r": 0, "t": 40, "b": 0}, "legend": {"x": 0.01, "y": 0.95},
               "scene": {"aspectmode": "data", "xaxis": {"title": "x forward (mm)"}, "yaxis": {"title": "y left (mm)"}, "zaxis": {"title": "z up (mm)"}}}  # fmt: skip
+    OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "sector_plan.html").write_text(f"""<!doctype html><html><head><meta charset="utf-8"><title>Sector plan</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
@@ -374,6 +410,10 @@ Plotly.newPlot("p", {json.dumps(traces)}, {json.dumps(layout)}, {{responsive: tr
             if len(s):
                 args = (s[:, 0], s[:, 1], s[:, 2]) if ax_ix is None else (s[:, ax_ix[0]], s[:, ax_ix[1]])
                 ax.scatter(*args, c=col, s=45, edgecolors="white", label=f"taught: {cname}", **({"depthshade": False} if ax_ix is None else {}))
+        if overlay:
+            o = np.array([r["tool_mm"] for r in overlay if r["name"] not in ("ready", "park")])
+            args = (o[:, 0], o[:, 1], o[:, 2]) if ax_ix is None else (o[:, ax_ix[0]], o[:, ax_ix[1]])
+            ax.scatter(*args, c="#8a5cc2", marker="s", s=22, alpha=0.6, label="step 6 tour", **({"depthshade": False} if ax_ix is None else {}))
         q = np.array([r["tool_mm"] for r in rows[:-1]])
         args = (q[:, 0], q[:, 1], q[:, 2]) if ax_ix is None else (q[:, ax_ix[0]], q[:, ax_ix[1]])
         ax.scatter(*args, c="#2a78d6", marker="D", s=22, label="planned", **({"depthshade": False} if ax_ix is None else {}))
