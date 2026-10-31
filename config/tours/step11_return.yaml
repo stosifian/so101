@@ -1,0 +1,7 @@
+# Phase 2 step 11, phase 5-7: after the 30-min unpowered cool-down, return to `ready` (same path), hold 5 min, park.
+# Return test: tag back at the cold-start position (elastic / thermal) or still at the end-of-hold position (creep / slip)?
+speed: 150
+dwell_s: 300        # 5 min
+waypoints:
+  - {name: ready, pos_m: [0.25, 0.00, 0.14], approach: [0.707, 0.0, -0.707]}
+  - {name: park,  start_pose: true, dwell_s: 0}

@@ -1,0 +1,8 @@
+# Phase 2 step 11 (thermal drift), phase 2: from a COLD start, move to `ready` and hold it 45 min with torque on, then park.
+# Run with scripts/motion/pose_tour.py --tour config/tours/step11_hold.yaml. At park it holds until Ctrl-C = torque off
+# (support the arm): that starts the unpowered cool-down. Same pose as 5b(b) (hold_ready.yaml), so the runs compare.
+speed: 150
+dwell_s: 2700       # 45 min hold at ready
+waypoints:
+  - {name: ready, pos_m: [0.25, 0.00, 0.14], approach: [0.707, 0.0, -0.707]}
+  - {name: park,  start_pose: true, dwell_s: 0}
