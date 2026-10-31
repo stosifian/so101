@@ -196,6 +196,12 @@ def main() -> None:
                                   "median_3d_mm": float(np.median(d3t)), "max_3d_mm": float(d3t.max()), "sub_mm_3d": int((d3t < 1).sum()),
                                   "sub_mm_lateral": int((lt < 1).sum())}  # fmt: skip
         console.print(tt)
+        if args.save:  # the variant files were written before the test existed: add its scores
+            for v, r in results.items():
+                f = REPO_ROOT / "config" / "kinematics" / f"follower_{v}.json"
+                d = json.loads(f.read_text())
+                d["metrics"]["test"] = r["test"]
+                f.write_text(json.dumps(d, indent=1))
     comparison(results, args, console)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "kincal.json").write_text(json.dumps({"runs": [r.name for r in args.runs], "reference": args.reference, "per_run": args.per_run,
