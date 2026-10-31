@@ -36,6 +36,9 @@ class Waypoint:
     start_pose: bool = False  # go back to the tour's starting pose, clamped into the software limits
     capture: bool = True  # capture_tour.py: take photos here (False = a via point that only sets the approach)
     shots: int | None = None  # capture_tour.py: photos at this waypoint (default: --shots)
+    desired_ticks: dict[str, float] | None = None  # capture_tour.py: after settling, nudge the goal once so the encoder
+    # READING lands here (step 10b encoder correction; at most --max-correct-ticks per joint)
+    meta: dict | None = None  # free-form tags carried into the manifest (e.g. step 10b target id + method)
 
 
 @dataclass

@@ -9,7 +9,9 @@ Same planner and safety as pose_tour.py (plan from the current pose and every pa
 and the table BEFORE torque-on; SafeArm trips, contact detection and the runtime table check stay active;
 Ctrl-C once = freeze, again = torque off). The arm keeps being controlled (holding the target) while the
 camera captures. No capture at `park`/start-pose waypoints or at waypoints with `capture: false` (via points
-that set the approach direction). `--shots N` (or a waypoint's `shots`) takes N photos per waypoint,
+that set the approach direction). A waypoint's `desired_ticks` adds one encoder correction after settling: the
+goal is nudged by (desired − reading) so the reading lands there (step 10b; skipped if any joint is off by more than
+--max-correct-ticks), then it settles again before the shots. `--shots N` (or a waypoint's `shots`) takes N photos per waypoint,
 --shot-gap-s apart (step 8 settle check: first vs late shot); their manifest labels are `<name>#<k>`. The tour's dwell_s is not used (--settle-s is).
 Stillness check: any joint that moved more than --still-ticks between the two snapshots is flagged.
 At the end it holds at park until Ctrl-C (support the arm; it settles onto its rest stops at torque-off).
@@ -41,7 +43,7 @@ from so101.kinematics.fk import CHAIN_JOINTS, chain_from_mujoco
 from so101.kinematics.ik import limits_rad
 from so101.kinematics.mapping import load_mapping
 from so101.kinematics.model import ArmModel
-from so101.motion.loop import control_loop
+from so101.motion.loop import Segment, control_loop
 from so101.motion.tour import ALL_JOINTS, load_tour, plan_tour
 from so101.runlog.manifest import Manifest
 from so101.runlog.run import Run, sha256_file
@@ -59,6 +61,7 @@ def main() -> None:
     ap.add_argument("--settle-s", type=float, default=3.0, help="hold before the first snapshot (ring-down, step 7, not measured yet)")
     ap.add_argument("--shots", type=int, default=1, help="photos per capture waypoint (a waypoint's `shots` overrides)")
     ap.add_argument("--shot-gap-s", type=float, default=10.0, help="start-to-start time between photos at one waypoint (settle check: first vs late shot)")
+    ap.add_argument("--max-correct-ticks", type=int, default=30, help="encoder correction (waypoint desired_ticks): skip if any joint is off by more")
     ap.add_argument("--still-ticks", type=int, default=2, help="stillness check: max joint change between the two snapshots")
     ap.add_argument("--speed", type=float, help="override the tour's peak ticks/s")
     ap.add_argument("--rate", type=float, default=100.0)
@@ -172,6 +175,24 @@ def main() -> None:
                     hold_until(arm, target, threading.Event(), args.settle_s)
                     if live.stop.is_set() or arm.frozen:
                         break
+                    correction = None
+                    if st.waypoint.desired_ticks:  # one encoder-reading correction (no external sensor)
+                        rd = arm.step(target).snapshot
+                        off = {j: st.waypoint.desired_ticks[j] - rd.joints[j].position for j in st.waypoint.desired_ticks if rd.joints.get(j)}
+                        if off and max(abs(v) for v in off.values()) <= args.max_correct_ticks:
+                            new = {**target, **{j: target[j] + v for j, v in off.items()}}
+                            result["phase"] = (i, name, "correcting")
+                            nudge = Segment(dict(target), new, 50.0, "minjerk")
+                            control_loop(arm, args.rate, nudge.at, nudge.duration_s, live.stop, freeze=live.freeze)
+                            if live.stop.is_set() or arm.frozen:
+                                break
+                            target = new
+                            hold_until(arm, target, threading.Event(), args.settle_s)
+                            if live.stop.is_set() or arm.frozen:
+                                break
+                            correction = {"offset_ticks": off, "applied": True}
+                        else:
+                            correction = {"offset_ticks": off, "applied": False}
                     for k in range(n_shots(st.waypoint)):
                         t_shot = time.monotonic()
                         before = arm.step(None if arm.frozen else target).snapshot  # a frozen arm refuses goals
@@ -201,7 +222,8 @@ def main() -> None:
                         label = name if n_shots(st.waypoint) == 1 else f"{name}#{k}"
                         manifest.add(label, commanded_ticks={j: int(v) for j, v in target.items()}, before=before, after=after,
                                      settle={"settle_s": args.settle_s, "shot": k, "since_arrival_s": args.settle_s + k * args.shot_gap_s,
-                                             "error_ticks": err, "still": not moved, "moved": moved},
+                                             "error_ticks": err, "still": not moved, "moved": moved, "correction": correction},
+                                     extra={"meta": st.waypoint.meta or {}, "desired_ticks": st.waypoint.desired_ticks},
                                      camera=None if r is None else {**r.as_dict(), "backend": camera.name})  # fmt: skip
                         result["captures"].append({"waypoint": label, "ok": bool(r and r.ok), "files": [] if r is None else [str(f) for f in r.files],
                                                    "error": None if r is None else r.error, "moved": moved, "error_ticks": err})  # fmt: skip

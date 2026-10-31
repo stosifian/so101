@@ -155,6 +155,8 @@ def plot(result: dict, times: dict[str, float], path: Path) -> None:
               ("detection residual RMS (px; image 0 is the reference)", [(None, np.where(t == 0, np.nan, g("residual_rms")), blue)]),
               ("tag edge-line RMS (px; worst tag)", [(None, g("edge_rms"), blue)])]  # fmt: skip
     panels = [p for p in panels if any(np.isfinite(y[1:]).any() for _, y, _ in p[1])]  # drop panels with no data (e.g. no background)
+    if not panels:  # e.g. a single-shot check: nothing changes over time
+        return
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 2.3 * len(panels)), sharex=True)
     for a, (title, series) in zip(axes, panels):
         for name, y, c in series:

@@ -47,7 +47,9 @@ def available() -> list[str]:
     return sorted(p.stem.removeprefix("follower_") for p in KIN_DIR.glob("follower_*.json"))
 
 
-def load(variant: str, kin_dir: Path = KIN_DIR) -> Calibrated:
+def load(variant: str, kin_dir: Path = KIN_DIR, anchor: Path | None = None) -> Calibrated:
+    """anchor: a re-anchor file (scripts/camera/reanchor.py) whose X for this variant replaces the fitted one (the
+    iPad or the base moved since the fit); the variant file itself is never modified."""
     path = kin_dir / f"follower_{variant}.json"
     if not path.exists():
         raise FileNotFoundError(f"{path} (available: {available()})")
@@ -56,5 +58,9 @@ def load(variant: str, kin_dir: Path = KIN_DIR) -> Calibrated:
         raise ValueError(f"{path} holds variant {d['variant']!r}, not {variant!r}")
     p = d["params"]
     fp = FKParams(delta=np.array(p["delta_rad"]), xi=np.array(p["xi"]))
+    X = {k: np.array(v) for k, v in d["X_ref_base"].items()}
+    if anchor is not None:
+        a = json.loads(Path(anchor).read_text())
+        X = {"all": np.array(a["X_ref_base"][variant])}
     return Calibrated(variant, fp, np.array(p["compliance_rad_per_Nm"]), p["compliance_mode"], p.get("tau_knee_Nm"),
-                      {k: np.array(v) for k, v in d["X_ref_base"].items()}, np.array(d["Y_body_tag"]), d["reference"], path, d)  # fmt: skip
+                      X, np.array(d["Y_body_tag"]), d["reference"], path, d)  # fmt: skip

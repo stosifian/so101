@@ -250,3 +250,33 @@ def gravity_torques(arm_model, mapping, ticks: dict) -> np.ndarray:
 
 def angles_from_ticks(mapping, ticks: dict) -> np.ndarray:
     return np.array([mapping.joints[j].to_rad(ticks[j]) for j in CHAIN_JOINTS])
+
+
+def refit_transform(shots: list[Shot], chain: Chain, cam: Camera, tag_mm: float, model: Model) -> tuple[np.ndarray, float]:
+    """Re-anchor: fit ONLY X (iPad<-base) to new shots with the model's arm parameters, Y, scale and compliance held
+    fixed (e.g. after the iPad or the arm base moved). Returns (X, corner RMS px)."""
+    obj = tag_object_points(tag_mm) * model.tag_scale
+    X0 = next(iter(model.X.values()))
+    # initial guess from the shots themselves: X ≈ T_ref⁻¹ · T_pnp · Y⁻¹ · F⁻¹, averaged
+    Xs = []
+    for s in shots:
+        F = fk(chain, model.q_eff(s), model.params, tcp=np.eye(4))
+        F[:3, 3] *= 1000
+        Xs.append(np.linalg.inv(s.T_ref) @ s.T_pnp @ np.linalg.inv(model.Y) @ np.linalg.inv(F))
+    X0 = np.eye(4)
+    X0[:3, :3] = Rotation.from_matrix([x[:3, :3] for x in Xs]).mean().as_matrix()
+    X0[:3, 3] = np.mean([x[:3, 3] for x in Xs], axis=0)
+
+    def res(p):
+        X = T_of(p[:3], p[3:6])
+        out = []
+        for s in shots:
+            F = fk(chain, model.q_eff(s), model.params, tcp=np.eye(4))
+            F[:3, 3] *= 1000
+            T = s.T_ref @ X @ F @ model.Y
+            proj = cv2.projectPoints(obj, cv2.Rodrigues(T[:3, :3])[0], T[:3, 3], cam.K, cam.dist)[0].reshape(-1, 2)
+            out.append((proj - s.corners).ravel())
+        return np.concatenate(out)
+
+    r = least_squares(res, _T6(X0), method="lm", x_scale="jac")
+    return T_of(r.x[:3], r.x[3:6]), float(np.sqrt(np.mean(r.fun**2)))

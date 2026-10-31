@@ -32,6 +32,7 @@ Key decision (D1, 2026-10-28): the iPad's on-screen ChArUco is both the intrinsi
 | 8 | Repeatability + backlash | done 2026-10-30: RP 0.70–0.86 mm (±1–2 tick landing + warm-up drift); direction offsets 5–12 ticks = servo deadband, no hidden backlash |
 | 9 | Gravity sag per joint | deferred (D12): needs a known payload + pause-for-swap tour; design in the plan |
 | 10 | Accuracy grid + kinematic fit | done 2026-10-30: calibrated model (link corrections + gravity compliance) at the tag, rel. iPad: 0.79 mm lateral / 1.14 mm 3D RMS on an independent test (nominal 2.02 / 2.18) |
+| 10b | Live command accuracy (D14) | done 2026-10-31: tag lands within 8.2 mm RMS (nominal) vs 1.9 mm (calibrated + one encoder correction), 13/13 targets better |
 | 11 | Thermal drift (incl. the 5b(b) sag follow-up, D9) | planned |
 | 12 | Write-up + Phase 3 choice | planned |
 

@@ -74,3 +74,17 @@ def test_calibrated_roundtrip(tmp_path):
     (tmp_path / "follower_links.json").write_text(json.dumps(doc))  # wrong content under another name
     with pytest.raises(ValueError):
         calibrated.load("links", tmp_path)
+
+
+def test_refit_transform_recovers_moved_ipad():
+    """Arm params fixed, iPad moved 25 mm / 1°: refitting X alone puts the model back on the data."""
+    true = FKParams()
+    true.delta[1] = np.radians(0.8)
+    S = shots(true, n=25)
+    m, _ = kincal.fit(S, CHAIN, CAM, 20.0, "offsets")
+    move = T_of(np.radians([0.0, 1.0, 0.0]), np.array([-25.0, 0.5, 0.5]))  # the iPad moved in the camera frame
+    S2 = [kincal.Shot(s.group, s.q, s.corners, s.T_pnp, s.label, s.run, move @ s.T_ref) for s in S]
+    assert np.abs(kincal.errors_mm(m, S2, CHAIN)).max() > 5  # stale X: badly off
+    X, rms = kincal.refit_transform(S2, CHAIN, CAM, 20.0, m)
+    m2 = kincal.Model("offsets", {"run": X}, m.Y, m.params)
+    assert rms < 0.1 and np.abs(kincal.errors_mm(m2, S2, CHAIN)).max() < 0.05
