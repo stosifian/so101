@@ -29,7 +29,8 @@ Key decision (D1, 2026-10-28): the iPad's on-screen ChArUco is both the intrinsi
 | 5b | Gripper tag + iPad static stability: (a) unpowered at rest, (b) holding the loaded `ready` pose (D7, D8) | (a) floor ≤ 28 µm/h; (b) holding `ready`: +258 µm sag in 30 min invisible to encoders (2026-10-30) |
 | 6 | Dry run: hand-taught extremes → 28-point sector tour, hand-eye-planned (D10) | done 2026-10-30 (29/29 captures, tag at 28) |
 | 7 | Ring-down | deferred (D11): camera can't resolve dynamics; settle 3 s from step 6, checked in step 8 |
-| 8–11 | repeatability/backlash, sag, accuracy grid, thermal drift (incl. the 5b(b) sag follow-up, D9) | planned |
+| 8 | Repeatability + backlash | done 2026-10-30: RP 0.70–0.86 mm (±1–2 tick landing + warm-up drift); direction offsets 5–12 ticks = servo deadband, no hidden backlash |
+| 9–11 | sag, accuracy grid, thermal drift (incl. the 5b(b) sag follow-up, D9) | planned |
 | 12 | Write-up + Phase 3 choice | planned |
 
 

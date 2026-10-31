@@ -34,6 +34,8 @@ class Waypoint:
     dwell_s: float | None = None  # hold after arriving (default: tour dwell)
     speed: float | None = None  # peak ticks/s for the move INTO this waypoint (default: tour speed)
     start_pose: bool = False  # go back to the tour's starting pose, clamped into the software limits
+    capture: bool = True  # capture_tour.py: take photos here (False = a via point that only sets the approach)
+    shots: int | None = None  # capture_tour.py: photos at this waypoint (default: --shots)
 
 
 @dataclass

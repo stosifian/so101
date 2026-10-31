@@ -63,3 +63,14 @@ The import worked at first only because it ran before iCloud reached the new fil
 **How we found it.** The new PnP pipeline measures the iPad and the tag independently in the camera frame: both shifted ~+100 µm x / −130 µm y together. That contradicted the background tracker. A synthetic 2 px shift confirmed the convention.
 **The fix.** Removed the negation; the line now documents the convention.
 **Takeaway.** Check every sign convention against a synthetic known shift, and validate a correction against an independent measurement before trusting a difference of two large numbers.
+
+## 6. A freeze that dropped the arm
+
+*Logged 2026-10-30, Phase 2 step 8 (capture tour).*
+
+**Symptom.** The user pressed Ctrl-C once (freeze) after kicking the table during a capture. The arm should have held its pose until a second Ctrl-C; instead torque went off at once and the run ended with "error: frozen: goals are refused until the next enable()".
+**What was going on.** `capture_tour.py` took its after-capture snapshot with `arm.step(target)`. The freeze landed during the ~6 s capture, so that call commanded a frozen arm. SafeArm refused (correctly) by raising; the exception left the `with SafeArm(...)` block, whose `__exit__` disables torque.
+**Why it happens.** The freeze is asynchronous (Ctrl-C or contact detection) and can arrive between any two lines of the worker. Any direct `arm.step(goals)` outside `control_loop` must check `arm.frozen`; only `control_loop` handled it. An exception inside the SafeArm context is "torque off", the opposite of a freeze.
+**How we found it.** Run `20261030-165832_capture_follower`: `safety_events.json` shows `freeze` followed by disable with no hold; the error string pointed at `step(goals)` while frozen.
+**The fix.** Snapshots in the capture loop use `arm.step(None if arm.frozen else target)`, so a freeze falls through to the frozen hold. Verified on SimBus with a `--sim-freeze-at` test hook: freeze mid-capture → no error, hold until stop, then disable.
+**Takeaway.** In motion scripts, every `arm.step(goals)` outside `control_loop` is a place a freeze can turn into a torque-off. Read with `arm.step()` when frozen; test the freeze path in simulation, not just the happy path.

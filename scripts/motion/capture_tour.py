@@ -8,7 +8,9 @@ arm snapshot -> one camera capture -> arm snapshot, written to the run manifest 
 Same planner and safety as pose_tour.py (plan from the current pose and every path checked against limits
 and the table BEFORE torque-on; SafeArm trips, contact detection and the runtime table check stay active;
 Ctrl-C once = freeze, again = torque off). The arm keeps being controlled (holding the target) while the
-camera captures. No capture at `park`/start-pose waypoints. The tour's dwell_s is not used (--settle-s is).
+camera captures. No capture at `park`/start-pose waypoints or at waypoints with `capture: false` (via points
+that set the approach direction). `--shots N` (or a waypoint's `shots`) takes N photos per waypoint,
+--shot-gap-s apart (step 8 settle check: first vs late shot); their manifest labels are `<name>#<k>`. The tour's dwell_s is not used (--settle-s is).
 Stillness check: any joint that moved more than --still-ticks between the two snapshots is flagged.
 At the end it holds at park until Ctrl-C (support the arm; it settles onto its rest stops at torque-off).
 Writes data/raw/<run_id>/ (kind capture): manifest.jsonl (commanded ticks, snapshots, settle, camera),
@@ -55,6 +57,8 @@ def main() -> None:
     ap.add_argument("--arm-moves", action="store_true", help="required for every scripts/motion/ script")
     ap.add_argument("--tour", default="config/tours/step6_sector.yaml")
     ap.add_argument("--settle-s", type=float, default=3.0, help="hold before the first snapshot (ring-down, step 7, not measured yet)")
+    ap.add_argument("--shots", type=int, default=1, help="photos per capture waypoint (a waypoint's `shots` overrides)")
+    ap.add_argument("--shot-gap-s", type=float, default=10.0, help="start-to-start time between photos at one waypoint (settle check: first vs late shot)")
     ap.add_argument("--still-ticks", type=int, default=2, help="stillness check: max joint change between the two snapshots")
     ap.add_argument("--speed", type=float, help="override the tour's peak ticks/s")
     ap.add_argument("--rate", type=float, default=100.0)
@@ -64,7 +68,11 @@ def main() -> None:
     ap.add_argument("--yes", action="store_true")
     ap.add_argument("--notes", default="")
     ap.add_argument("--sim", action="store_true")
+    ap.add_argument("--sim-freeze-at", type=int, help="test hook (--sim only): freeze during capture N (0-based), "
+                    "as a Ctrl-C would, then end the frozen hold 2 s later")  # fmt: skip
     args = ap.parse_args()
+    if args.sim_freeze_at is not None and not args.sim:
+        sys.exit("--sim-freeze-at needs --sim")
     if not args.arm_moves:
         sys.exit("refusing to run without --arm-moves (scripts/motion/ convention)")
 
@@ -112,8 +120,12 @@ def main() -> None:
     console.print(f"total {plan.duration_s / 60:.1f} min at {speed:g} ticks/s peak; all joints move together")
     camera = MockCamera(delay_s=0.5) if args.sim else Gphoto2Camera()
     cam_info = camera.info()  # fails here, before torque-on, if the camera isn't reachable
-    n_cap = sum(not s.waypoint.start_pose for s in plan.steps)
-    console.print(f"{n_cap} captures; ~{(plan.duration_s + n_cap * (args.settle_s + 7)) / 60:.1f} min")
+    def n_shots(w) -> int:
+        return 0 if (w.start_pose or not w.capture) else (w.shots or args.shots)
+
+    n_cap = sum(n_shots(s.waypoint) for s in plan.steps)
+    n_wp = sum(n_shots(s.waypoint) > 0 for s in plan.steps)
+    console.print(f"{n_cap} captures at {n_wp} waypoints; ~{(plan.duration_s + n_wp * args.settle_s + n_cap * max(7, args.shot_gap_s)) / 60:.1f} min")
     if not args.yes:
         try:
             input("Arm resting on its stops, workspace clear (nothing within ~35 cm)? Enter = enable torque and run (Ctrl-C aborts)… ")
@@ -153,37 +165,50 @@ def main() -> None:
                     control_loop(arm, args.rate, seg.at, seg.duration_s, live.stop, freeze=live.freeze)
                     if live.stop.is_set() or arm.frozen:
                         break
-                    if st.waypoint.start_pose:
+                    if n_shots(st.waypoint) == 0:
                         continue
                     target = seg.target
                     result["phase"] = (i, name, "settling")
                     hold_until(arm, target, threading.Event(), args.settle_s)
                     if live.stop.is_set() or arm.frozen:
                         break
-                    before = arm.step(target).snapshot
-                    result["phase"] = (i, name, "capturing")
-                    done, box = threading.Event(), {}
+                    for k in range(n_shots(st.waypoint)):
+                        t_shot = time.monotonic()
+                        before = arm.step(None if arm.frozen else target).snapshot  # a frozen arm refuses goals
+                        result["phase"] = (i, name, f"capturing {k + 1}/{n_shots(st.waypoint)}")
+                        done, box = threading.Event(), {}
 
-                    def shoot(stem=f"img_{len(result['captures']):04d}_{name}") -> None:
-                        try:
-                            box["r"] = camera.capture(run.dir / "images", stem)
-                        finally:
-                            done.set()
+                        def shoot(stem=f"img_{len(result['captures']):04d}_{name}_s{k}") -> None:
+                            if args.sim_freeze_at == len(result["captures"]):  # test hook: a Ctrl-C mid-capture
+                                live.freeze.set()
+                                threading.Timer(2.0, live.stop.set).start()
+                            try:
+                                box["r"] = camera.capture(run.dir / "images", stem)
+                            finally:
+                                done.set()
 
-                    threading.Thread(target=shoot, name="capture").start()
-                    hold_until(arm, target, done, 60.0)
-                    done.wait(60.0)
-                    after = arm.step(target).snapshot
-                    r = box.get("r")
-                    moved = {j: after.joints[j].position - before.joints[j].position for j in ALL_JOINTS
-                             if before.joints.get(j) and after.joints.get(j)
-                             and abs(after.joints[j].position - before.joints[j].position) > args.still_ticks}  # fmt: skip
-                    err = {j: before.joints[j].position - target[j] for j in ALL_JOINTS if before.joints.get(j)}
-                    manifest.add(name, commanded_ticks={j: int(v) for j, v in target.items()}, before=before, after=after,
-                                 settle={"settle_s": args.settle_s, "error_ticks": err, "still": not moved, "moved": moved},
-                                 camera=None if r is None else {**r.as_dict(), "backend": camera.name})  # fmt: skip
-                    result["captures"].append({"waypoint": name, "ok": bool(r and r.ok), "files": [] if r is None else [str(f) for f in r.files],
-                                               "error": None if r is None else r.error, "moved": moved, "error_ticks": err})  # fmt: skip
+                        threading.Thread(target=shoot, name="capture").start()
+                        hold_until(arm, target, done, 60.0)
+                        done.wait(60.0)
+                        # a freeze (Ctrl-C, contact) can land during the capture: then only read, never command, so the
+                        # worker falls through to the frozen hold below instead of raising (which would drop torque)
+                        after = arm.step(None if arm.frozen else target).snapshot
+                        r = box.get("r")
+                        moved = {j: after.joints[j].position - before.joints[j].position for j in ALL_JOINTS
+                                 if before.joints.get(j) and after.joints.get(j)
+                                 and abs(after.joints[j].position - before.joints[j].position) > args.still_ticks}  # fmt: skip
+                        err = {j: before.joints[j].position - target[j] for j in ALL_JOINTS if before.joints.get(j)}
+                        label = name if n_shots(st.waypoint) == 1 else f"{name}#{k}"
+                        manifest.add(label, commanded_ticks={j: int(v) for j, v in target.items()}, before=before, after=after,
+                                     settle={"settle_s": args.settle_s, "shot": k, "since_arrival_s": args.settle_s + k * args.shot_gap_s,
+                                             "error_ticks": err, "still": not moved, "moved": moved},
+                                     camera=None if r is None else {**r.as_dict(), "backend": camera.name})  # fmt: skip
+                        result["captures"].append({"waypoint": label, "ok": bool(r and r.ok), "files": [] if r is None else [str(f) for f in r.files],
+                                                   "error": None if r is None else r.error, "moved": moved, "error_ticks": err})  # fmt: skip
+                        if live.stop.is_set() or arm.frozen:
+                            break
+                        if k + 1 < n_shots(st.waypoint):  # hold until the next shot's start time
+                            hold_until(arm, target, threading.Event(), max(0.0, args.shot_gap_s - (time.monotonic() - t_shot)))
                     if live.stop.is_set() or arm.frozen:
                         break
                 marks["end_ns"] = time.monotonic_ns()
