@@ -59,8 +59,9 @@ def _bilinear(img: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def refine_corners(gray: np.ndarray, corners: np.ndarray, n_samples: int = 40, end_frac: float = 0.12,
-                   half_width: float | None = None) -> tuple[np.ndarray, float] | None:  # fmt: skip
+                   half_width: float | None = None, edges_out: list | None = None) -> tuple[np.ndarray, float] | None:  # fmt: skip
     """Edge-line refinement of a tag's 4 outer corners. Returns (corners (4, 2), edge RMS px) or None.
+    edges_out: if given, gets one (crossings (n, 2), line point, line direction) per edge, for plots.
 
     For each edge: sample points along it (skipping `end_frac` at both ends, where the neighbouring edge
     bends the profile), take an intensity profile along the normal (±half_width, default 0.4 cell so it
@@ -104,6 +105,8 @@ def refine_corners(gray: np.ndarray, corners: np.ndarray, n_samples: int = 40, e
         nrm = np.array([-d[1], d[0]])
         resid.append((pts - m) @ nrm)
         lines.append((m, d))
+        if edges_out is not None:
+            edges_out.append((pts, m, d))
     out = np.empty((4, 2))
     for k in range(4):  # corner k = edge (k-1) ∩ edge k
         (m1, d1), (m2, d2) = lines[k - 1], lines[k]

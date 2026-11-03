@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SO-101 Metrology Report</title>
+<style>
+:root { --bg:#fbfbf9; --fg:#1f1f1d; --muted:#6b6a63; --line:#e4e3dd; --accent:#2a78d6; --card:#ffffff; --quote:#f1f0eb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161615; --fg:#ecebe6; --muted:#a3a29b; --line:#33322f; --accent:#6aa6ec; --card:#1f1f1d; --quote:#262624; } }
+:root[data-theme="dark"] { --bg:#161615; --fg:#ecebe6; --muted:#a3a29b; --line:#33322f; --accent:#6aa6ec; --card:#1f1f1d; --quote:#262624; }
+html,body { background:var(--bg); color:var(--fg); margin:0; }
+body { font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 1.9rem; line-height:1.25; margin: 0 0 8px; }
+h2 { font-size: 1.3rem; margin: 40px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+p, li { max-width: 75ch; }
+em { color: var(--muted); }
+blockquote { margin: 16px 0; padding: 14px 18px; background: var(--quote); border-left: 4px solid var(--accent); border-radius: 6px; }
+blockquote p { margin:0; font-size: 1.05rem; }
+.table-wrap { overflow-x: auto; margin: 12px 0 20px; }
+table { border-collapse: collapse; font-size: 0.92rem; min-width: 100%; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 600; background: var(--card); position: sticky; top: 0; }
+td { font-variant-numeric: tabular-nums; }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--quote); padding: 1px 4px; border-radius: 4px; }
+a { color: var(--accent); }
+figure { margin: 18px 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+figure img { width: 100%; height: auto; display: block; background: #fff; border-radius: 4px; }
+figcaption { color: var(--muted); font-size: 0.88rem; margin-top: 6px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+</style></head>
+<body><main>
+<h1>SO-101 follower: camera metrology results (Phase 2)</h1>
+<p><em>2026-10-26 → 2026-10-31. One Sony A7 IV (35 mm, f/11) at ~0.6–0.7 m; an iPad showing a pixel-exact ChArUco board as
+the fixed reference; a 20 mm AprilTag (36h11 ID 2) on the gripper. Every arm measurement is the tag's pose
+<strong>relative to the iPad seen in the same photo</strong>, so camera motion cancels.</em></p>
+<h2>Headline</h2>
+<blockquote>
+<p><strong>Out of the box, the SO-101 follower puts its gripper ~8 mm from where it's told, mostly sagging low under
+gravity. Calibrated against a camera, it reaches ~2 mm RMS (≤ 3 mm worst case) and repeats to under 1 mm.
+Repeatability is set by the servos' deadband, not by gear backlash. Drift while holding a pose is a tick-sized
+re-settle that the servo's own encoder reports, not thermal creep.</strong></p>
+</blockquote>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Value</th>
+<th>Step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Accuracy, nominal model</strong> (commanded)</td>
+<td>8.2 mm 3D RMS; lands ~7.5 mm low</td>
+<td>10b</td>
+</tr>
+<tr>
+<td><strong>Accuracy, calibrated + one encoder correction</strong> (commanded)</td>
+<td><strong>1.9 mm 3D RMS</strong>, 1.5 mm lateral, max 3.0 mm</td>
+<td>10b</td>
+</tr>
+<tr>
+<td><strong>Knowing where it is</strong> (calibrated model from encoder readings)</td>
+<td>0.8 mm lateral, 1.1 mm 3D RMS</td>
+<td>10 (independent test)</td>
+</tr>
+<tr>
+<td><strong>Repeatability</strong> (same target, same approach)</td>
+<td><strong>0.7–0.9 mm</strong> (ISO 9283 RP)</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Direction-dependent offset</td>
+<td>5–12 ticks per joint = servo deadband; hidden gear backlash ≲ 1 tick</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Drift while holding (45 min, elbow 29 → 41 °C)</td>
+<td>one 1-tick step (−0.43 mm), otherwise ≤ 50 µm (~1 µm/min); reversible</td>
+<td>11</td>
+</tr>
+<tr>
+<td>Measurement floor (tag relative to iPad, per shot)</td>
+<td>5–15 µm lateral, ~100 µm depth</td>
+<td>5b</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Conditions:</strong></p>
+<ul>
+<li>
+<p><strong>Where:</strong> measured at the gripper tag, not the tool tip (D13), in the inner workspace (~0.2–0.45 m reach, ≤ ~270 mm high, shoulder-lift gravity torque ≤ ~0.75 N·m). At far-forward reach the errors grow to 2.5–5 mm.</p>
+</li>
+<li>
+<p><strong>Arm state:</strong> warmed up, 3 s settle, quasi-static.</p>
+</li>
+<li>
+<p><strong>Scale:</strong> absolute scale nominal (≤ 0.3 %, D4).</p>
+</li>
+</ul>
+<hr />
+<h2>1. Measurement system</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Result</th>
+<th>Step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tethered capture (gphoto2)</td>
+<td>50/50, 5.9 s per 67.6 MB RAW</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Intrinsics</td>
+<td>41 iPad views, RMS 0.166 px; fx 7007.4, fy 7006.2 px; bottom 21 % of the frame uncalibrated</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Rig stability (iPad only, 1 h)</td>
+<td>≤ ~40 µm/h</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Tag corner refinement</td>
+<td>edge-line fit on linear (gamma 1) RAW; bias ≤ 0.03 px, scatter ~0.02 px (synthetic). OpenCV SUBPIX biased ~0.17 px inward; gamma shrinks the tag 0.2–0.6 px per edge</td>
+<td>5b</td>
+</tr>
+<tr>
+<td>Floor, hands off the table (<code>20261030-113927</code>)</td>
+<td>tag rel. iPad per shot: 15.6 / 5.5 / 107 µm (x / y / depth); drift ≤ ~23 µm/h</td>
+<td>5b(a)</td>
+</tr>
+<tr>
+<td>Blur</td>
+<td>soft focus (edge 0.23 px) ≈ 2× corner noise of sharp (0.055 vs 0.028 px); usable for relative work</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Hand-eye model (camera ← base, tag ← gripper)</td>
+<td>2.2 mm RMS at the tag; predicted every lost-tag pose from joint angles alone</td>
+<td>6</td>
+</tr>
+</tbody>
+</table></div>
+<figure><img src="../figures/tag_pose_pipeline.png" alt="Tag pose pipeline" loading="lazy"><figcaption>Tag pose pipeline</figcaption></figure>
+<figure><img src="../figures/step5b_a_target_pose_20261030-113927.png" alt="5b(a): tag relative to the iPad at rest, hands off" loading="lazy"><figcaption>5b(a): tag relative to the iPad at rest, hands off</figcaption></figure>
+<p><strong>Lessons:</strong></p>
+<ul>
+<li>
+<p><strong>Touching the table</strong> moved the camera 0.13 mm.</p>
+</li>
+<li>
+<p><strong>Sign bug:</strong> the background-motion tracker's sign was inverted (LESSONS #5).</p>
+</li>
+<li>
+<p><strong>The workspace was set by the camera's depth of field and field of view,</strong> not by the arm.</p>
+</li>
+</ul>
+<h2>2. Workspace and the dry run (step 6)</h2>
+<ul>
+<li><strong>Workspace definition:</strong> extremes taught by hand (17 poses) → a spherical sector → an even grid, each pose checked for table clearance, the iPad-side pan limit and predicted tag visibility.</li>
+<li><strong>Dry run:</strong> 29/29 captures, manifest matching the files 1:1, no stillness flags, tag found at 28/29.</li>
+</ul>
+<figure><img src="../figures/step6_sector_plan.png" alt="Step 6 sector plan" loading="lazy"><figcaption>Step 6 sector plan</figcaption></figure>
+<figure><img src="../figures/capture_map.png" alt="Step 6 capture map" loading="lazy"><figcaption>Step 6 capture map</figcaption></figure>
+<p>Animation: <a href="../figures/capture_tour.gif"><code>../figures/capture_tour.gif</code></a>.</p>
+<h2>3. Repeatability and backlash (step 8, <code>20261030-170704</code>)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Target</th>
+<th>sd x / y / z (µm)</th>
+<th>RP 3D</th>
+<th>RP lateral</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>p01</td>
+<td>123 / 344 / 106</td>
+<td>836 µm</td>
+<td>838 µm</td>
+</tr>
+<tr>
+<td>p04</td>
+<td>45 / 271 / 140</td>
+<td>776 µm</td>
+<td>701 µm</td>
+</tr>
+<tr>
+<td>p22</td>
+<td>281 / 137 / 187</td>
+<td>861 µm</td>
+<td>731 µm</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Joint</th>
+<th>Camera-derived offset (± approach)</th>
+<th>Encoder offset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>shoulder_pan</td>
+<td>7.0 ticks</td>
+<td>8.0</td>
+</tr>
+<tr>
+<td>shoulder_lift</td>
+<td>7.0</td>
+<td>7.5</td>
+</tr>
+<tr>
+<td>elbow_flex</td>
+<td>11.9</td>
+<td>12.5</td>
+</tr>
+<tr>
+<td>wrist_flex</td>
+<td>5.2</td>
+<td>5.0</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Spread:</strong> the servos land 0–2 ticks differently per return, and those tick differences predict the spread (r 0.72–0.87).</li>
+<li>
+<p><strong>Backlash:</strong> the direction offsets are the servo deadband, which the encoder sees. Hidden gear backlash is ≲ 1 tick.</p>
+</li>
+<li>
+<p><strong>Settle time:</strong> a 3 s settle leaves ~18 µm of further sink.</p>
+</li>
+</ul>
+<figure><img src="../figures/step8_repeatability_20261030-170704.png" alt="Step 8 repeatability" loading="lazy"><figcaption>Step 8 repeatability</figcaption></figure>
+<h2>4. Kinematic calibration (step 10)</h2>
+<ul>
+<li><strong>Data:</strong> 221 shots / 92 poses from 4 runs (fit), plus an independent test of 17 never-fitted poses.</li>
+<li>
+<p><strong>Model variants:</strong> six, each in <code>config/kinematics/follower_&lt;variant&gt;.json</code>.</p>
+</li>
+<li>
+<p><strong>Full details:</strong> <code>docs/results/step10_kinematic_calibration.md</code>.</p>
+</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Adds</th>
+<th>CV lateral</th>
+<th>CV 3D</th>
+<th>Test lateral</th>
+<th>Test 3D</th>
+<th>Test sub-mm lat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nominal</td>
+<td>camera/tag transforms only</td>
+<td>1.57</td>
+<td>1.98</td>
+<td>2.02</td>
+<td>2.18</td>
+<td>4/17</td>
+</tr>
+<tr>
+<td>offsets</td>
+<td>+ lift/elbow zero offsets</td>
+<td>1.43</td>
+<td>2.06</td>
+<td>1.81</td>
+<td>2.80</td>
+<td>3/17</td>
+</tr>
+<tr>
+<td>links</td>
+<td>+ link geometry corrections</td>
+<td>0.89</td>
+<td>1.66</td>
+<td>1.01</td>
+<td>1.34</td>
+<td>10/17</td>
+</tr>
+<tr>
+<td>full</td>
+<td>links + wrist offsets + tag scale</td>
+<td>0.89</td>
+<td>1.67</td>
+<td>1.02</td>
+<td>1.35</td>
+<td>10/17</td>
+</tr>
+<tr>
+<td><strong>stiff_lin</strong></td>
+<td>links + linear gravity compliance</td>
+<td><strong>0.74</strong></td>
+<td><strong>1.07</strong></td>
+<td><strong>0.79</strong></td>
+<td><strong>1.14</strong></td>
+<td><strong>13/17</strong></td>
+</tr>
+<tr>
+<td>stiff_thr</td>
+<td>links + shoulder compliance above 0.75 N·m</td>
+<td>0.91</td>
+<td>1.79</td>
+<td>0.92</td>
+<td>1.28</td>
+<td>12/17</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>mm at the tag, relative to the iPad; CV = held out, 5-fold by pose.</em></p>
+<ul>
+<li><strong>Link geometry and gravity compliance matter.</strong> Zero offsets alone don't help.</li>
+<li>
+<p><strong>The gravity term helps across the workspace,</strong> not only at the far edge.</p>
+</li>
+<li>
+<p><strong>The residual is mostly depth along the camera's line of sight.</strong></p>
+</li>
+<li>
+<p><strong>Sub-mm poses (CV 3D):</strong> nominal 6/92 → <code>stiff_lin</code> 59/92 (median 0.77 mm).</p>
+</li>
+</ul>
+<figure><img src="../figures/step10_error_dots.png" alt="Step 10 per-pose error" loading="lazy"><figcaption>Step 10 per-pose error</figcaption></figure>
+<figure><img src="../figures/step10_error_map.png" alt="Step 10 error vectors" loading="lazy"><figcaption>Step 10 error vectors</figcaption></figure>
+<figure><img src="../figures/step10_error_vs_gravity_links.png" alt="Error vs gravity load" loading="lazy"><figcaption>Error vs gravity load</figcaption></figure>
+<p>Interactive versions: <a href="../figures/step10_error_dots.html"><code>../figures/step10_error_dots.html</code></a>, <a href="../figures/step10_error_map.html"><code>../figures/step10_error_map.html</code></a>.</p>
+<h2>5. Commanding with the calibrated model (step 10b, <code>20261031-135444</code>)</h2>
+<p>Re-anchored on the grid poses (<code>20261031-103300</code>) after the iPad moved; 13 targets × 3 methods.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>3D RMS</th>
+<th>Lateral RMS</th>
+<th>Max</th>
+<th>Common offset (x / y / z)</th>
+<th>Lateral scatter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nominal IK</td>
+<td>8.18</td>
+<td>8.07</td>
+<td>10.95</td>
+<td>+0.8 / <strong>+7.5</strong> / −0.8</td>
+<td>2.91</td>
+</tr>
+<tr>
+<td>calibrated (<code>stiff_lin</code>) + bend/droop feedforward</td>
+<td>2.10</td>
+<td>1.84</td>
+<td>4.42</td>
+<td>−0.7 / −0.5 / −0.3</td>
+<td>1.65</td>
+</tr>
+<tr>
+<td><strong>+ one encoder-reading correction</strong></td>
+<td><strong>1.88</strong></td>
+<td><strong>1.53</strong></td>
+<td><strong>2.99</strong></td>
+<td>−0.3 / +1.3 / −0.7</td>
+<td><strong>0.75</strong></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Calibrated commanding is better than nominal on all 13 targets.</strong> The encoder correction, which uses only the servo's own reading, halves the landing scatter.</li>
+<li><strong>Re-anchoring lesson:</strong> a first attempt anchored on poses where the model fits poorly carried ~2.6 mm of anchor offset. Anchor where the model is good.</li>
+</ul>
+<figure><img src="../figures/step10b_command_accuracy_20261031-135444.png" alt="Step 10b landing errors" loading="lazy"><figcaption>Step 10b landing errors</figcaption></figure>
+<p>Animations: <a href="../figures/kinematic_grid_rerun_20261031-103300.gif"><code>../figures/kinematic_grid_rerun_20261031-103300.gif</code></a>, <a href="../figures/validation_10b_20261031-135444.gif"><code>../figures/validation_10b_20261031-135444.gif</code></a>.</p>
+<h2>6. Drift the encoders can and can't see (steps 5b(b), 11)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Observation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5b(b), 30-min hold at <code>ready</code> (<code>20261030-125013</code>)</td>
+<td>+258 µm sink with <strong>no</strong> encoder change; elbow 30 → 39 °C</td>
+</tr>
+<tr>
+<td><strong>Step 11</strong>, 45-min hold from cold (<code>20261031-152653</code>)</td>
+<td>one −430 µm step at 3.2 min = <strong>one elbow encoder tick</strong> (2270 → 2269); otherwise ≤ 50 µm (~1.3 µm/min) while the elbow rose 29 → 41 °C</td>
+</tr>
+<tr>
+<td>Step 11 cool-down, 30 min unpowered</td>
+<td>lateral within 50–100 µm; no trend with temperature</td>
+</tr>
+<tr>
+<td>Step 11 return to <code>ready</code></td>
+<td>back at the hold start (0 % of the drift left), same elbow tick</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>What step 11 shows:</strong> at a fixed pose, the drift is tick-sized, reversible and visible to the encoder. Continuous thermal drift is ~1 µm/min.</li>
+<li><strong>Open:</strong> the 5b(b) sag with no tick change did not reproduce.</li>
+</ul>
+<figure><img src="../figures/step11_thermal_20261031-152653.png" alt="Step 11 thermal drift" loading="lazy"><figcaption>Step 11 thermal drift</figcaption></figure>
+<figure><img src="../figures/step5b_b_hold_sag_20261030-125013.png" alt="5b(b) hold" loading="lazy"><figcaption>5b(b) hold</figcaption></figure>
+<h2>7. Limitations</h2>
+<ul>
+<li><strong>Static only:</strong> 1/30 s exposure, ~6 s per capture, unmeasured trigger lag. No dynamics (ring-down deferred, D11).</li>
+<li>
+<p><strong>Tag, not tool tip:</strong> the tool tip needs pivot calibration (D13).</p>
+</li>
+<li>
+<p><strong>Single 20 mm tag:</strong> depth is the weak axis (~100 µm per shot) and dominates the residuals.</p>
+</li>
+<li>
+<p><strong>Workspace:</strong> the top is cut off by the field of view; depth of field limits reach toward the camera.</p>
+</li>
+<li>
+<p><strong>Contact detection isn't gravity-aware:</strong> a false trip at full reach (p39).</p>
+</li>
+<li>
+<p><strong>Nominal scale (D4):</strong> results reprocess without recapture once measured.</p>
+</li>
+<li>
+<p><strong>Wrist compliance not separated:</strong> the fitted wrist compliance (13°/N·m) can't be told apart from a wrist-pitch geometric error (step 9 deferred).</p>
+</li>
+</ul>
+<h2>8. Implications for Phase 3</h2>
+<ul>
+<li><strong>Static accuracy is model-limited and correctable without sensors:</strong> 8 → ~2 mm with a calibrated model plus feedforward and one encoder correction.</li>
+<li>
+<p><strong>Repeatability is limited by the servo deadband.</strong> Approaching from one side, or correcting on the reading, attacks it.</p>
+</li>
+<li>
+<p><strong>The non-repeatable drift seen here is mostly encoder-visible</strong> (1-tick re-settles). An external sensor is justified only if sub-mm absolute accuracy is needed, or if 5b(b)-type sag without tick changes recurs.</p>
+</li>
+</ul>
+<h2>Data and code</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Runs</th>
+<th>Analysis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5b</td>
+<td><code>20261030-113927</code>, <code>20261030-125013</code></td>
+<td><code>scripts/camera/target_pose.py</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>20261030-154331</code>, <code>20261030-162649</code></td>
+<td><code>scripts/readonly/teach_poses.py</code>, <code>scripts/sim/plan_sector_tour.py</code>, <code>scripts/camera/handeye_fit.py</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>20261030-170704</code></td>
+<td><code>scripts/camera/repeatability.py</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>20261030-190841</code> (+ step 6/8), test <code>20261030-202915</code></td>
+<td><code>scripts/camera/kinematic_fit.py</code>, <code>kincal_error_map.py</code>, <code>kincal_gravity.py</code></td>
+</tr>
+<tr>
+<td>10b</td>
+<td>anchor <code>20261031-103300</code>, run <code>20261031-135444</code></td>
+<td><code>scripts/camera/command_accuracy.py</code>, <code>reanchor.py</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>20261031-150441</code>, <code>…152451/152653</code>, <code>…161050/161101</code>, <code>…164018/164106</code></td>
+<td><code>scripts/camera/thermal_drift.py</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Plan, deviations D1–D15: <code>docs/phase-2-plan.md</code>. Lessons: <code>notes/LESSONS_LEARNED.md</code> (#4–#6).</p>
+</main></body></html>

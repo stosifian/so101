@@ -41,11 +41,11 @@
 
         <!-- 4 refine / intrinsics / stability -->
         <rect class="built" x="290" y="320" width="280" height="70" rx="5"/>
-        <text class="t" x="306" y="342">4 · Edge-line refine (ours)</text>
+        <text class="t" x="306" y="342">4 · Edge-line refine</text>
         <text class="d" x="306" y="360">4 edges × 40 profiles, linear image</text>
         <text class="d" x="306" y="376">→ 4 corners ±0.02 px + edge RMS</text>
         <rect class="input" x="610" y="320" width="240" height="70" rx="5"/>
-        <text class="t" x="626" y="342">Intrinsics (step 4)</text>
+        <text class="t" x="626" y="342">Intrinsics</text>
         <text class="d" x="626" y="360">fx 7007 · cx 3528 · cy 2319 px</text>
         <text class="d" x="626" y="376">k1–k3 · valid at taped focus only</text>
         <rect class="built" x="20" y="320" width="226" height="70" rx="5"/>
@@ -104,10 +104,10 @@
         <rect class="input" x="20" y="820" width="226" height="80" rx="5"/>
         <text class="t" x="34" y="842">Joint ticks</text>
         <text class="d" x="34" y="860">Present_Position → FK(q)</text>
-        <text class="d" x="34" y="876">(Phase 1 kinematics)</text>
+        <text class="d" x="34" y="876">(arm kinematic model)</text>
         <line class="edge" x1="246" y1="860" x2="288" y2="860" marker-end="url(#ah)"/>
         <rect class="built" x="290" y="820" width="600" height="80" rx="5"/>
-        <text class="t" x="306" y="842">9 · Arm comparison (steps 8–10)</text>
+        <text class="t" x="306" y="842">9 · Arm comparison</text>
         <text class="d" x="306" y="862">measured T ipad←tag  vs  T ipad←base · FK(q) · T tool←tag</text>
         <text class="d" x="306" y="878">the two constant transforms are fitted over many poses;</text>
         <text class="d" x="306" y="892">what is left over is the arm's error (repeatability, sag, accuracy)</text>

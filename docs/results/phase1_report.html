@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SO-101 Bring-up Report</title>
+<style>
+:root { --bg:#fbfbf9; --fg:#1f1f1d; --muted:#6b6a63; --line:#e4e3dd; --accent:#2a78d6; --card:#ffffff; --quote:#f1f0eb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161615; --fg:#ecebe6; --muted:#a3a29b; --line:#33322f; --accent:#6aa6ec; --card:#1f1f1d; --quote:#262624; } }
+:root[data-theme="dark"] { --bg:#161615; --fg:#ecebe6; --muted:#a3a29b; --line:#33322f; --accent:#6aa6ec; --card:#1f1f1d; --quote:#262624; }
+html,body { background:var(--bg); color:var(--fg); margin:0; }
+body { font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 1.9rem; line-height:1.25; margin: 0 0 8px; }
+h2 { font-size: 1.3rem; margin: 40px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+p, li { max-width: 75ch; }
+em { color: var(--muted); }
+blockquote { margin: 16px 0; padding: 14px 18px; background: var(--quote); border-left: 4px solid var(--accent); border-radius: 6px; }
+blockquote p { margin:0; font-size: 1.05rem; }
+.table-wrap { overflow-x: auto; margin: 12px 0 20px; }
+table { border-collapse: collapse; font-size: 0.92rem; min-width: 100%; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 600; background: var(--card); position: sticky; top: 0; }
+td { font-variant-numeric: tabular-nums; }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--quote); padding: 1px 4px; border-radius: 4px; }
+a { color: var(--accent); }
+figure { margin: 18px 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+figure img { width: 100%; height: auto; display: block; background: #fff; border-radius: 4px; }
+figcaption { color: var(--muted); font-size: 0.88rem; margin-top: 6px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+</style></head>
+<body><main>
+<h1>SO-101 follower: bring-up and function results (Phase 1)</h1>
+<p><em>2026-10-26 → 2026-10-28. SO-101 follower (6 × Feetech STS3215, 12 V) and leader (5 V), driven from macOS over
+USB serial. Compiled 2026-10-31 from the repo's records: <code>docs/phase1_acceptance.md</code> (authoritative),
+<code>docs/phase-1-plan.md</code> (steps, deviations D1–D18), <code>docs/hardware_log.md</code>, <code>notes/claude/2026-10-26…28.md</code>,
+<code>notes/LESSONS_LEARNED.md</code>. Numbers are quoted from those documents; none were recomputed for this report. Phase 1
+produced no saved figures, so this report is text and tables.</em></p>
+<h2>Headline</h2>
+<blockquote>
+<p><strong>The follower arm passed bring-up: all 12 servos healthy, motion accurate and repeatable at the encoder (±3 ticks
+over 15 min) under a safety layer proven on the real arm, including two real collisions it now prevents or
+catches. Decision 2026-10-27: GO, keep the arm.</strong> The main limitation found is the P-only servos: they hold
+short of their goals under gravity (a commanded Cartesian line sagged up to 8.4 mm), which Phase 2 quantified at
+the gripper and largely calibrated out.</p>
+</blockquote>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Result</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Servo health</td>
+<td>12/12 STS3215, firmware 3.10; follower 11.8–11.9 V, leader 4.9 V; no error flags; factory homing offsets present; <strong>no firmware angle limits</strong></td>
+<td><code>20261026-112606_regdump_*</code></td>
+</tr>
+<tr>
+<td>Communication</td>
+<td>6-servo telemetry read ≈ 3.0 ms; 100 Hz loop holds; 15-min endurance: 0 failed reads in 96k samples</td>
+<td><code>20261026-121235</code>, <code>20261027-142432_endurance</code></td>
+</tr>
+<tr>
+<td>Safe torque-on</td>
+<td>goal := present + speed/accel caps, read back: <strong>0 ticks of motion at torque-on</strong></td>
+<td><code>20261026-144830_hold</code></td>
+</tr>
+<tr>
+<td>Contact detection</td>
+<td>following error by joint role → freeze; live push test froze at 14 ticks; caught a real gripper–table contact on day 2</td>
+<td><code>20261026-170706_hold</code>, <code>20261027-091714_sweep</code></td>
+</tr>
+<tr>
+<td>Collision model</td>
+<td>MuJoCo geometry check flags all 3 real table contacts (−2 to −20 mm); normal motion ≥ 27 mm clear; runtime freeze before a colliding goal is written</td>
+<td><code>tests/test_collision.py</code></td>
+</tr>
+<tr>
+<td>Motion quality</td>
+<td>P = 32: 0 holding jitter; stick-slip at 50 ticks/s (51 % stalled), smooth at 150 (12 %)</td>
+<td><code>20261026-145837_move</code>, <code>…154001</code></td>
+</tr>
+<tr>
+<td>Stiffness</td>
+<td>≈ 0.85 % load per tick on every joint (pan push, elbow sag, gripper 0.82)</td>
+<td>5b, 6, 10b</td>
+</tr>
+<tr>
+<td>Repeatability (encoder)</td>
+<td>same direction 0–2 ticks (pan); <strong>≤ ±3 ticks over 30 visits in 15 min, no drift</strong></td>
+<td><code>20261027-093309_settle</code>, <code>…142432_endurance</code></td>
+</tr>
+<tr>
+<td>Calibration (tick → model)</td>
+<td>by eye + one table-touch refinement: tool height error <strong>1.5 mm RMS</strong> at table level (max 3.7 mm, leave-one-out 1.8)</td>
+<td><code>20261027-124750_model_check</code></td>
+</tr>
+<tr>
+<td>Kinematics</td>
+<td>parameterized FK = MuJoCo to machine precision; DLS IK with limits; Cartesian line commanded within 0.6 mm</td>
+<td><code>docs/fk_math.md</code>, <code>docs/ik_math.md</code>, <code>20261027-135238_cartesian</code></td>
+</tr>
+<tr>
+<td>Gripper</td>
+<td>torque-capped squeeze to 37.6 % load (46 ticks short); <code>Present_Current</code> trustworthy above ~10 % load</td>
+<td><code>20261027-141349_squeeze</code></td>
+</tr>
+<tr>
+<td>Thermal (15 min, low load)</td>
+<td>≤ +1 °C; 55 °C trip never approached</td>
+<td><code>20261027-142432_endurance</code></td>
+</tr>
+<tr>
+<td>All-joint pose tour</td>
+<td>17 waypoints, all joints together, 4.6 min; no freeze, trip or contact; end-of-dwell error ≤ 14 ticks (elbow); peak load 17.6 %</td>
+<td><code>20261028-155951_tour</code></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2>1. Hardware and communication (steps 1–3)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Finding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Port map</td>
+<td>both driver boards enumerate as identical CH343 (<code>1a86:55d3</code>); only the board serial distinguishes them: follower <code>5B90103255</code> (12 V), leader <code>5B90101307</code> (5 V)</td>
+</tr>
+<tr>
+<td>Factory state</td>
+<td>non-zero homing <code>Offset</code> on all servos (Seeed-calibrated); <code>Min/Max_Angle_Limit</code> 0/4095; <strong>at power-up Goal_Position = 0, Goal_Speed = 0, Acceleration = 0 (unlimited)</strong>: naive torque-on would drive a joint toward tick 0 at full speed</td>
+</tr>
+<tr>
+<td>Leader shoulder_lift</td>
+<td>different EEPROM fingerprint (Phase 12, Max V 8.0, Protection_Current 500): the 1/345 gear variant, matching the follower</td>
+</tr>
+<tr>
+<td>Telemetry glitches</td>
+<td>single-sample V/°C outliers on <strong>IDs 4–6</strong> of both arms (0.2–1.6 % of samples): servo-side ADC noise, not the read path (A/B test). Temperature spikes up to 103 °C on a driven joint while moving</td>
+</tr>
+<tr>
+<td>Loop timing (no TUI)</td>
+<td>period p50 / p99 / max 10.0 / 11.6 / 13 ms; the TUI costs timing (p99 14.0, max 28 ms)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Lessons:</strong></p>
+<ul>
+<li>
+<p><strong>"Port exists ≠ servos reachable"</strong> (LESSONS #1). The leader was silent until the driver→motor cable was reconnected.</p>
+</li>
+<li>
+<p><strong>The repo moved out of the iCloud-synced Desktop</strong> (LESSONS #2). iCloud hid the editable install's <code>.pth</code> file, which Python 3.12 then skips.</p>
+</li>
+</ul>
+<h2>2. Safety layer (steps 4–5)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Write whitelist</td>
+<td>SRAM registers only; EEPROM writes impossible from scripts</td>
+</tr>
+<tr>
+<td>Torque-on sequence</td>
+<td>goal := present, speed/accel caps, all read back, then torque; Mode writes re-check Torque_Enable</td>
+</tr>
+<tr>
+<td>Software limits</td>
+<td>the only position guard (no firmware limits); a pose outside them is allowed at start but can't move further out</td>
+</tr>
+<tr>
+<td>Trips</td>
+<td>debounced temperature/voltage (ADC glitches), immediate overload/overcurrent/angle; one owner per bus</td>
+</tr>
+<tr>
+<td>Stop</td>
+<td>two-stage Ctrl-C: 1st = freeze (hold), 2nd = torque off (D4). Measured stop 13 ticks / 100 ms at 150 ticks/s</td>
+</tr>
+<tr>
+<td>Staging</td>
+<td>5a shadow (0 writes, 60 s live) → 5b hold (+ push test) → 5c one joint → 5d stick-slip (D3)</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Replay before hardware:</strong> replaying recorded telemetry through the trip checker found a false trip before any hardware test. The leader gripper's Status voltage bit follows its ADC glitches.</li>
+</ul>
+<h2>3. Sweeps, contact detection, settling (step 6)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Joint</th>
+<th>Hysteresis (approach direction)</th>
+<th>Holding load</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>shoulder_pan</td>
+<td>3–5 ticks</td>
+<td>±2.4 % (friction)</td>
+<td></td>
+</tr>
+<tr>
+<td>wrist_roll</td>
+<td>2–5 ticks</td>
+<td>±2.4 %</td>
+<td><strong>gripper base touched the shoulder near 2645–2664</strong> in rest pose → wrist_roll limit 3438 → 2550 (D9)</td>
+</tr>
+<tr>
+<td>gripper</td>
+<td>2–6 ticks</td>
+<td>0…±4 %</td>
+<td></td>
+</tr>
+<tr>
+<td>wrist_flex</td>
+<td>4–5 ticks</td>
+<td>↓ +3.2…+4.8 %</td>
+<td></td>
+</tr>
+<tr>
+<td>elbow_flex</td>
+<td><strong>8–13 ticks</strong></td>
+<td>↓ +7…+12 %</td>
+<td>sag ≈ load / 0.86 %/tick</td>
+</tr>
+<tr>
+<td>shoulder_lift</td>
+<td><strong>14–20 ticks</strong> (largest)</td>
+<td>gravity ≈ 10–11 %, friction ±6–7 %</td>
+<td><strong>wrist hit the table</strong> lifting from rest; clean gravity profile from a cleared pose to 79°</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Contact detection (6a):</strong> freeze on following error, moving / holding / idle (config: 40 / 25 / 10 ticks, 0.3 s). In replay it catches the table contact ~2 s before the 39 % load peak, with no false triggers on 5 normal runs. Gentle contact is not caught (documented).</li>
+<li>
+<p><strong>Settling (6c):</strong> <code>wait_until_settled</code> + <code>approach(dir)</code> + min-jerk ramps + a dwell after the encoder settles. Encoder settle ≈ 0.21 s. <strong>End-effector wobble at stops is invisible to the encoders</strong> (structural flex, D11).</p>
+</li>
+<li>
+<p><strong>Two real contacts were first misread</strong> (cable twist, gravity), and corrected by what the user saw. Rule kept: ask what was physically seen before explaining odd telemetry.</p>
+</li>
+</ul>
+<h2>4. Calibration and kinematics (steps 7–9)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tick → model mapping (step 7)</td>
+<td>per-joint zero + sign (all +1) vs the MuJoCo Menagerie SO-101, by eye + live nudges; 3 validation poses lined up; stops reach 7–11° past the model's ranges (lift, wrist_flex)</td>
+</tr>
+<tr>
+<td>FK (8a)</td>
+<td>own local product-of-exponentials chain = MuJoCo to machine precision; parameterized (zero offsets, link twists, tool) for Phase 2 fitting; space-PoE exported</td>
+</tr>
+<tr>
+<td>Collision model (8b)</td>
+<td>MuJoCo geometry: table = base underside (z = −2.4 mm); self-collision warn-only; 0.5 ms/check; folded-pose gripper↔shoulder contact is a known blind spot (model 13–14 mm apart)</td>
+</tr>
+<tr>
+<td>Table touches (8c)</td>
+<td>base rocking found and fixed (corner mount); 8 touches → shoulder_lift zero 2222 → 2210 (+1.03°): height error 4.4 → <strong>1.5 mm RMS</strong> (max 3.7). More parameters overfit</td>
+</tr>
+<tr>
+<td>IK (9a)</td>
+<td>DLS, joint-limit aware, tool = fixed-jaw tip, position + approach direction; fingers straight down near the table exceed wrist_flex → ~25° tilt</td>
+</tr>
+<tr>
+<td>Collision-checked motion (9b–c)</td>
+<td>every plan checked before torque-on (IK, limits, continuity, table with 3 mm margin + inside-margin rule); runtime freeze on a predicted contact</td>
+</tr>
+<tr>
+<td>Cartesian line (9d)</td>
+<td>80 mm line: commanded within 0.6 mm; <strong>measured up to 8.5 mm off (−8.4 mm vertical sag, ≤ 7.1 mm lag)</strong>, RMS 4.7 mm</td>
+</tr>
+</tbody>
+</table></div>
+<h2>5. Endurance, gripper, manifest (step 10)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Endurance loop (15 min, 30 cycles)</td>
+<td>30/30 settled; error at the reference ≤ ±3 ticks (std ≤ 0.85); trend ≤ 0.06 ticks/min; 0 bus failures in 96k samples</td>
+</tr>
+<tr>
+<td>Thermal</td>
+<td>≤ +1 °C (median load 0–2.4 %): a repeatability baseline, <strong>not</strong> a thermal test</td>
+</tr>
+<tr>
+<td>Gripper squeeze</td>
+<td>contact from goal ≈ 2220; at 2100: 46 ticks short, 37.6 % load, ≈ 436 mA; stiffness 0.82 %/tick</td>
+</tr>
+<tr>
+<td><code>Present_Current</code></td>
+<td>≈ 0 below ~10 % load; ≈ 19 mA/% above: trust current above ~10 %, load below</td>
+</tr>
+<tr>
+<td>Run manifest</td>
+<td>JSONL per pose, snapshots before/after, optional camera block (used by every Phase 2 capture)</td>
+</tr>
+</tbody>
+</table></div>
+<h2>6. Acceptance and the post-acceptance tour (steps 11–12)</h2>
+<ul>
+<li><strong>GO (user, 2026-10-27).</strong> One item was flagged for before the return window closed: inspect the wrist servos' (IDs 4–6) wiring, given the sensor glitches and rare missed replies at the end of the chain. Teleop check dropped (D17).</li>
+<li><strong>Step 12 (D18), all-joint pose tour</strong> (<code>config/tours/pick_and_place.yaml</code>):</li>
+<li>17 waypoints, every joint moving together;</li>
+<li>no freeze, trip or contact; 0 missed reads;</li>
+<li>end-of-dwell error ≤ 14 ticks (elbow, gravity), median 1–3 on every joint;</li>
+<li>temperatures 33–37 °C;</li>
+<li>doubled as the Phase 2 depth-of-field check.</li>
+</ul>
+<h2>7. Known limitations at acceptance</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Limitation</th>
+<th>Size</th>
+<th>Handling then</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gravity sag + following lag (P-only servos)</td>
+<td>Cartesian line up to 8.5 mm off (−8.4 mm sag, 7 mm lag)</td>
+<td>Phase 3 stiffness compensation</td>
+</tr>
+<tr>
+<td>Direction-dependent stopping</td>
+<td>2–6 ticks unloaded, 8–20 ticks on gravity joints</td>
+<td><code>approach(dir)</code> for metrology</td>
+</tr>
+<tr>
+<td>Stick-slip at low speed</td>
+<td>51 % stalled at 50 ticks/s, 12 % at 150</td>
+<td>default 150 ticks/s</td>
+</tr>
+<tr>
+<td>Servo V/°C glitches</td>
+<td>single samples, up to 103 °C on a driven joint</td>
+<td>debounced trips, median displays</td>
+</tr>
+<tr>
+<td>Calibration (by eye + 1 refinement)</td>
+<td>~1.5–2.5 mm at the tool</td>
+<td>Phase 2 camera fit</td>
+</tr>
+<tr>
+<td>Self-collision blind spot</td>
+<td>folded-pose gripper↔shoulder</td>
+<td>wrist_roll limit 2550</td>
+</tr>
+<tr>
+<td>Wobble invisible to encoders</td>
+<td>visible at stops on extended moves</td>
+<td>dwell; Phase 2 ring-down</td>
+</tr>
+<tr>
+<td>Wrist reach near the table</td>
+<td>fingers vertical at 8 cm exceed wrist_flex</td>
+<td>~25° tilt</td>
+</tr>
+</tbody>
+</table></div>
+<h2>8. Revisited in Phase 2</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Phase 1 finding</th>
+<th>What Phase 2 measured at the gripper (<code>docs/results/phase2_report.md</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cartesian line sagged −8.4 mm (encoder-derived + by-eye model)</td>
+<td><strong>consistent:</strong> commanding with the nominal model lands the tag ~7.5 mm low (step 10b)</td>
+</tr>
+<tr>
+<td>Calibration ~1.5–2.5 mm at the tool (table touches)</td>
+<td><strong>understated away from the table:</strong> the nominal model is ~2 mm RMS off at the tag across the workspace, up to ~6 mm at far reach; camera calibration brings it to ~0.8 mm lateral (step 10)</td>
+</tr>
+<tr>
+<td>Repeatability ≤ ±3 ticks at the encoder</td>
+<td><strong>same story, now in mm:</strong> 0.7–0.9 mm at the tag, set by ±1–2 tick landings (step 8)</td>
+</tr>
+<tr>
+<td>Hysteresis 2–20 ticks ("backlash")</td>
+<td><strong>it is the servo deadband</strong>, visible to the encoder; hidden gear backlash ≲ 1 tick (step 8)</td>
+</tr>
+<tr>
+<td>Wobble invisible to encoders; ring-down "for Phase 2"</td>
+<td><strong>not measurable with this camera</strong> (1/30 s, ~6 s per shot): deferred as a setup limitation (D11); a 3 s settle verified</td>
+</tr>
+<tr>
+<td>"Thermal drift needs load"</td>
+<td><strong>done (step 11):</strong> a 45-min loaded hold drifts one encoder tick (~0.4 mm), otherwise ~1 µm/min</td>
+</tr>
+<tr>
+<td>Contact thresholds tuned near rest</td>
+<td><strong>false trip at full reach</strong> (p39, step 10 grid): not gravity-aware</td>
+</tr>
+</tbody>
+</table></div>
+<h2>9. Inconsistencies found in the records</h2>
+<ul>
+<li><strong>Contact-detection thresholds:</strong> the plan's step 6a row says "≈35 ticks moving / ≈12 holding". The 10-26 notes and the safety config say moving 40 / holding 25 / idle 10. The plan row records the first proposal; the config values (40 / 25 / 10) are what ran, and what this report quotes.</li>
+<li>
+<p><strong>Stiffness:</strong> quoted as 0.85 %/tick (acceptance), 0.86 (elbow sag, notes) and 0.82 (gripper). They're the same spring within measurement; the report uses ≈ 0.85.</p>
+</li>
+<li>
+<p><strong>Elbow position after its sweep:</strong> first logged as back at 2927, later corrected in the notes to ~2860 (friction held it). The hardware log has the corrected value.</p>
+</li>
+</ul>
+<h2>Data and code</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Key runs</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td><code>20261026-112606_regdump_follower</code>, <code>…_leader</code></td>
+<td><code>scripts/readonly/dump_registers.py</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>20261026-130808_telemetry_follower</code>, <code>20261026-131126_telemetry_leader</code></td>
+<td><code>scripts/readonly/live_readout.py</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>20261026-142826_shadow</code>, <code>…144830_hold</code>, <code>…145837_move</code>, <code>…154001/154057_move</code></td>
+<td><code>so101.safety.SafeArm</code>, <code>scripts/motion/</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>20261026-160702…162655_sweep</code>, <code>20261027-092126/092438_sweep</code>, <code>20261026-170706_hold</code>, <code>20261027-093309_settle</code></td>
+<td><code>scripts/motion/joint_sweep.py</code>, <code>settle_check.py</code></td>
+</tr>
+<tr>
+<td>7–8</td>
+<td><code>20261027-103553/124750_model_check</code></td>
+<td><code>so101.kinematics</code> (<code>mapping</code>, <code>fk</code>, <code>collision</code>)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>20261027-135238_cartesian</code></td>
+<td><code>so101.kinematics.ik</code>, <code>scripts/motion/cartesian_line.py</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>20261027-141349_squeeze</code>, <code>20261027-142432_endurance</code></td>
+<td><code>scripts/motion/gripper_squeeze.py</code>, <code>endurance_loop.py</code>, <code>so101.runlog.manifest</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>20261028-155951_tour</code></td>
+<td><code>scripts/motion/pose_tour.py</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Acceptance: <code>docs/phase1_acceptance.md</code>. Plan and deviations D1–D18: <code>docs/phase-1-plan.md</code>. Hardware facts: <code>docs/hardware_log.md</code>.</p>
+</main></body></html>
