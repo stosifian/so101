@@ -7,3 +7,8 @@ __pycache__/
 data/raw/
 data/derived/
 *.rrd
+
+# local-only planning docs
+so101-metrology-plan.md
+CLAUDE.md
+docs/phase-2-plan.md
