@@ -2,7 +2,7 @@
 
 Software to measure how accurately an SO-101 arm goes where it's told, using a camera you probably already own,
 an iPad as the reference, and a printed AprilTag. Results and the story are in
-[`docs/writeup_draft.md`](docs/writeup_draft.md).
+[`docs/writeup.md`](docs/writeup.md).
 
 This README is for repeating the experiment on your own arm. Everything here was built for one follower arm, one
 Sony A7 IV and one iPad Air, so expect to redo the per-device steps (ports, limits, joint mapping, intrinsics,
